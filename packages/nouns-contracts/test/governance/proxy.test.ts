@@ -14,7 +14,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import {
   NounsToken,
   NounsDescriptorV2__factory as NounsDescriptorV2Factory,
-  NounsDAOLogicV4,
+  INounsDAOLogic,
 } from '../../typechain';
 import { MAX_QUORUM_VOTES_BPS, MIN_QUORUM_VOTES_BPS } from '../constants';
 
@@ -24,7 +24,7 @@ const { expect } = chai;
 let token: NounsToken;
 let deployer: SignerWithAddress;
 let signers: TestSigners;
-let gov: NounsDAOLogicV4;
+let gov: INounsDAOLogic;
 
 async function setup() {
   token = await deployNounsToken(signers.deployer);

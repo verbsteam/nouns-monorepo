@@ -62,7 +62,7 @@ describe('V3 Vote Refund', () => {
     await advanceBlocks(1);
 
     gov = await deployGovernorV3WithV3Proxy(deployer, token.address);
-    await submitProposal(user);
+    await submitProposal(user, [0, 1]);
   });
 
   beforeEach(async () => {
@@ -157,9 +157,10 @@ describe('V3 Vote Refund', () => {
     it('malicious voter trying reentrance does not get refunded', async () => {
       const voter = await new MaliciousVoter__factory(deployer).deploy(gov.address, 2, 1, false);
       await token.connect(user).transferFrom(user.address, voter.address, 0);
-      await token.connect(user).transferFrom(user.address, user2.address, 1);
+      await token.connect(deployer).mint();
+      await token.connect(deployer).transferFrom(deployer.address, user2.address, 2);
       await advanceBlocks(1);
-      await submitProposal(user2);
+      await submitProposal(user2, [2]);
       const balanceBefore = await user.getBalance();
 
       const tx = await voter.connect(user).castVote(DEFAULT_GAS_OPTIONS);
@@ -327,9 +328,10 @@ describe('V3 Vote Refund', () => {
     it('malicious voter trying reentrance does not get refunded', async () => {
       const voter = await new MaliciousVoter__factory(deployer).deploy(gov.address, 2, 1, true);
       await token.connect(user).transferFrom(user.address, voter.address, 0);
-      await token.connect(user).transferFrom(user.address, user2.address, 1);
+      await token.connect(deployer).mint();
+      await token.connect(deployer).transferFrom(deployer.address, user2.address, 2);
       await advanceBlocks(1);
-      await submitProposal(user2);
+      await submitProposal(user2, [2]);
       const balanceBefore = await user.getBalance();
 
       const tx = await voter.connect(user).castVote(DEFAULT_GAS_OPTIONS);
@@ -345,9 +347,10 @@ describe('V3 Vote Refund', () => {
 
       const voter = await new Voter__factory(deployer).deploy(gov.address, 2, 1, true);
       await token.connect(user).transferFrom(user.address, voter.address, 0);
-      await token.connect(user).transferFrom(user.address, user2.address, 1);
+      await token.connect(deployer).mint();
+      await token.connect(deployer).transferFrom(deployer.address, user2.address, 2);
       await advanceBlocks(1);
-      await submitProposal(user2);
+      await submitProposal(user2, [2]);
 
       const balanceBefore = await user.getBalance();
       const tx = await voter.connect(user).castVote(DEFAULT_GAS_OPTIONS);
@@ -416,10 +419,11 @@ describe('V3 Vote Refund', () => {
     expect(refundEvent!.args!.refundAmount).to.be.closeTo(expectedCost, REFUND_ERROR_MARGIN);
   }
 
-  async function submitProposal(u: SignerWithAddress) {
+  async function submitProposal(u: SignerWithAddress, tokenIds: number[]) {
     await gov
       .connect(u)
-      ['propose(address[],uint256[],string[],bytes[],string)'](
+      ['propose(uint256[],address[],uint256[],string[],bytes[],string)'](
+        tokenIds,
         [address(0)],
         ['0'],
         ['getBalanceOf(address)'],
