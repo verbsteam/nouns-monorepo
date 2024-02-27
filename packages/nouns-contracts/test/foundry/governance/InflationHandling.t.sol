@@ -103,9 +103,12 @@ contract NounsDAOLogic3InflationHandling40TotalSupplyTest is NounsDAOLogicV3Infl
         vm.roll(block.number + 1);
 
         assertEq(nounsToken.getPriorVotes(user1, block.number - 1), 2);
+        uint256[] memory tokenIds = new uint256[](2);
+        tokenIds[0] = 1;
+        tokenIds[1] = 2;
 
         vm.expectRevert(NounsDAOProposals.VotesBelowProposalThreshold.selector);
-        propose(user1, address(0), 0, '', '');
+        propose(user1, tokenIds, address(0), 0, '', '');
     }
 
     function testAllowsProposingIfAboveThreshold() public {

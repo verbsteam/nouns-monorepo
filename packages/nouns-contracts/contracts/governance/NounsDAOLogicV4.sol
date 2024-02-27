@@ -142,6 +142,7 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
     function initialize(
         address timelock_,
         address nouns_,
+        address delegationToken_,
         address forkEscrow_,
         address forkDAODeployer_,
         address vetoer_,
@@ -158,6 +159,7 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
         NounsDAOAdmin._setProposalThresholdBPS(daoParams_.proposalThresholdBPS);
         ds.timelock = INounsDAOExecutorV2(timelock_);
         ds.nouns = NounsTokenLike(nouns_);
+        ds.delegationToken = delegationToken_;
         ds.forkEscrow = INounsDAOForkEscrow(forkEscrow_);
         ds.forkDAODeployer = IForkDAODeployer(forkDAODeployer_);
         ds.vetoer = vetoer_;
@@ -188,13 +190,14 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * @return uint256 Proposal id of new proposal
      */
     function propose(
+        uint256[] calldata tokenIds,
         address[] memory targets,
         uint256[] memory values,
         string[] memory signatures,
         bytes[] memory calldatas,
         string memory description
     ) external returns (uint256) {
-        return propose(targets, values, signatures, calldatas, description, 0);
+        return propose(tokenIds, targets, values, signatures, calldatas, description, 0);
     }
 
     /**
@@ -208,6 +211,7 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * @return uint256 Proposal id of new proposal
      */
     function propose(
+        uint256[] calldata tokenIds,
         address[] memory targets,
         uint256[] memory values,
         string[] memory signatures,
@@ -215,7 +219,13 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
         string memory description,
         uint32 clientId
     ) public returns (uint256) {
-        return ds.propose(NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas), description, clientId);
+        return
+            ds.propose(
+                tokenIds,
+                NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas),
+                description,
+                clientId
+            );
     }
 
     /**
@@ -230,6 +240,7 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * @return uint256 Proposal id of new proposal
      */
     function proposeOnTimelockV1(
+        uint256[] calldata tokenIds,
         address[] memory targets,
         uint256[] memory values,
         string[] memory signatures,
@@ -238,6 +249,7 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
     ) public returns (uint256) {
         return
             ds.proposeOnTimelockV1(
+                tokenIds,
                 NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas),
                 description,
                 0
@@ -257,6 +269,7 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * @return uint256 Proposal id of new proposal
      */
     function proposeOnTimelockV1(
+        uint256[] calldata tokenIds,
         address[] memory targets,
         uint256[] memory values,
         string[] memory signatures,
@@ -266,6 +279,7 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
     ) public returns (uint256) {
         return
             ds.proposeOnTimelockV1(
+                tokenIds,
                 NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas),
                 description,
                 clientId
@@ -909,6 +923,10 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
 
     function timelockV1() public view returns (address) {
         return address(ds.timelockV1);
+    }
+
+    function delegationToken() public view returns (address) {
+        return ds.delegationToken;
     }
 
     receive() external payable {}

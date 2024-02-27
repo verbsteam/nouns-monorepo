@@ -298,6 +298,8 @@ interface NounsTokenLike {
     function mint() external returns (uint256);
 
     function setApprovalForAll(address operator, bool approved) external;
+
+    function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256);
 }
 
 interface IForkDAODeployer {
@@ -404,6 +406,8 @@ interface NounsDAOTypes {
         uint256 forkThresholdBPS;
         /// @notice Address of the original timelock
         INounsDAOExecutor timelockV1;
+        address delegationToken;
+        mapping(uint256 tokenId => uint256 proposalId) latestProposalIdsByTokenId;
     }
 
     struct Proposal {

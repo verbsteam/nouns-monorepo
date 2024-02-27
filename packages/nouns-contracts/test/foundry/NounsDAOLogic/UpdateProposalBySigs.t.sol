@@ -13,6 +13,7 @@ import { NounsToken } from '../../../contracts/NounsToken.sol';
 import { NounsSeeder } from '../../../contracts/NounsSeeder.sol';
 import { IProxyRegistry } from '../../../contracts/external/opensea/IProxyRegistry.sol';
 import { NounsDAOExecutor } from '../../../contracts/governance/NounsDAOExecutor.sol';
+import { NounDelegationToken } from '../../../contracts/governance/NounDelegationToken.sol';
 
 contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
     address proposer = makeAddr('proposerWithVote');
@@ -748,6 +749,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
     }
 
     function test_givenPropNotBySigs_reverts() public {
+        NounDelegationToken dt = NounDelegationToken(dao.delegationToken());
+
         (
             address[] memory signers,
             uint256[] memory signerPKs,
@@ -767,12 +770,16 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         dao.cancel(proposalId);
 
         // giving proposer enough votes to propose
-        vm.prank(_signers[_signers.length - 1]);
-        nounsToken.delegate(proposer);
+        vm.startPrank(_signers[_signers.length - 1]);
+        uint256 tokenId = dao.nouns().tokenOfOwnerByIndex(_signers[_signers.length - 1], 0);
+        dt.mint(proposer, tokenId);
+        vm.stopPrank();
         vm.roll(block.number + 1);
 
         // propose without signers
-        proposalId = propose(proposer, makeAddr('target'), 0, '', '', '');
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = tokenId;
+        proposalId = propose(proposer, tokenIds, makeAddr('target'), 0, '', '', '', 0);
         vm.roll(block.number + 1);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.SignerCountMismtach.selector));

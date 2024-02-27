@@ -35,6 +35,7 @@ interface INounsDAOLogic {
      * @return uint256 Proposal id of new proposal
      */
     function propose(
+        uint256[] calldata tokenIds,
         address[] memory targets,
         uint256[] memory values,
         string[] memory signatures,
@@ -43,6 +44,7 @@ interface INounsDAOLogic {
     ) external returns (uint256);
 
     function propose(
+        uint256[] calldata tokenIds,
         address[] memory targets,
         uint256[] memory values,
         string[] memory signatures,
@@ -63,6 +65,7 @@ interface INounsDAOLogic {
      * @return uint256 Proposal id of new proposal
      */
     function proposeOnTimelockV1(
+        uint256[] calldata tokenIds,
         address[] memory targets,
         uint256[] memory values,
         string[] memory signatures,
@@ -690,4 +693,6 @@ interface INounsDAOLogic {
     function proposalUpdatablePeriodInBlocks() external view returns (uint256);
 
     function timelockV1() external view returns (address);
+
+    function delegationToken() external view returns (address);
 }

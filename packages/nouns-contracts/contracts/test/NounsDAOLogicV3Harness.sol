@@ -15,6 +15,7 @@ contract NounsDAOLogicV3Harness is NounsDAOLogicV4 {
     function initialize(
         address timelock_,
         address nouns_,
+        address delegationToken_,
         address forkEscrow_,
         address forkDAODeployer_,
         address vetoer_,
@@ -31,6 +32,7 @@ contract NounsDAOLogicV3Harness is NounsDAOLogicV4 {
         ds.proposalThresholdBPS = daoParams_.proposalThresholdBPS;
         ds.timelock = INounsDAOExecutorV2(timelock_);
         ds.nouns = NounsTokenLike(nouns_);
+        ds.delegationToken = delegationToken_;
         ds.forkEscrow = INounsDAOForkEscrow(forkEscrow_);
         ds.forkDAODeployer = IForkDAODeployer(forkDAODeployer_);
         ds.vetoer = vetoer_;

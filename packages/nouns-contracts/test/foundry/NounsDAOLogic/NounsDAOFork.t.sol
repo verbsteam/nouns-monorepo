@@ -305,7 +305,12 @@ contract DAOForkSignaledOverThresholdStateTest is DAOForkSignaledOverThresholdSt
         vm.prank(tokenHolder);
         nounsToken.transferFrom(tokenHolder, someone, 14);
         vm.roll(block.number + 1);
-        propose(someone, address(0), 0, '', '', '');
+
+        uint256[] memory tokenIds = new uint256[](2);
+        tokenIds[0] = 13;
+        tokenIds[1] = 14;
+
+        propose(someone, tokenIds, address(0), 0, '', '', '', 0);
     }
 }
 
