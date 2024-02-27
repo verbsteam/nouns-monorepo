@@ -122,8 +122,12 @@ contract NounsDAOLogic3InflationHandling40TotalSupplyTest is NounsDAOLogicV3Infl
         vm.roll(block.number + 1);
 
         assertEq(nounsToken.getPriorVotes(user1, block.number - 1), 3);
+        uint256[] memory tokenIds = new uint256[](3);
+        tokenIds[0] = 1;
+        tokenIds[1] = 2;
+        tokenIds[2] = 3;
 
-        propose(user1, address(0), 0, '', '');
+        propose(user1, tokenIds, address(0), 0, '', '');
     }
 }
 
@@ -158,7 +162,12 @@ abstract contract TotalSupply40WithAProposalState is NounsDAOLogicV3InflationHan
 
         assertEq(nounsToken.getPriorVotes(user1, block.number - 1), 3);
 
-        proposalId = propose(user1, address(0), 0, '', '');
+        uint256[] memory tokenIds = new uint256[](3);
+        tokenIds[0] = 1;
+        tokenIds[1] = 2;
+        tokenIds[2] = 3;
+
+        proposalId = propose(user1, tokenIds, address(0), 0, '', '');
     }
 }
 
@@ -186,8 +195,13 @@ contract SupplyIncreasedStateTest is SupplyIncreasedState {
     }
 
     function testRejectsProposalsPreviouslyAboveThresholdButNowBelowBecauseSupplyIncreased() public {
+        uint256[] memory tokenIds = new uint256[](3);
+        tokenIds[0] = 1;
+        tokenIds[1] = 2;
+        tokenIds[2] = 3;
+
         vm.expectRevert(NounsDAOProposals.VotesBelowProposalThreshold.selector);
-        propose(user1, address(0), 0, '', '');
+        propose(user1, tokenIds, address(0), 0, '', '');
     }
 
     function testDoesntChangePreviousProposalAttributes() public {
