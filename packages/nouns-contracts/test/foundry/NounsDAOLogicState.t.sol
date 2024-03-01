@@ -10,6 +10,7 @@ import { NounsSeeder } from '../../contracts/NounsSeeder.sol';
 import { IProxyRegistry } from '../../contracts/external/opensea/IProxyRegistry.sol';
 import { NounsDAOExecutor } from '../../contracts/governance/NounsDAOExecutor.sol';
 import { NounsDAOLogicSharedBaseTest } from './helpers/NounsDAOLogicSharedBase.t.sol';
+import { DelegationHelpers } from './helpers/DelegationHelpers.sol';
 
 abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
     function setUp() public override {

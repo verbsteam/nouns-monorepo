@@ -16,6 +16,7 @@ import { NounsDAOExecutor } from '../../../contracts/governance/NounsDAOExecutor
 abstract contract UpdateProposalBaseTest is NounsDAOLogicBaseTest {
     address proposer = makeAddr('proposer');
     uint256 proposalId;
+    uint256[] tokenIds;
 
     function setUp() public override {
         super.setUp();
@@ -26,8 +27,9 @@ abstract contract UpdateProposalBaseTest is NounsDAOLogicBaseTest {
         nounsToken.transferFrom(minter, proposer, 1);
         vm.roll(block.number + 1);
         vm.stopPrank();
+        tokenIds = [1];
 
-        proposalId = propose(proposer, makeAddr('target'), 0, '', '', '');
+        proposalId = propose(proposer, tokenIds, makeAddr('target'), 0, '', '', '', 0);
         vm.roll(block.number + 1);
     }
 }
@@ -116,7 +118,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
 
         // Succeeded
         vm.prank(proposer);
-        dao.castVote(proposalId, 1);
+        dao.castRefundableVote(tokenIds, proposalId, 1);
         vm.roll(block.number + VOTING_PERIOD);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Succeeded);
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -176,7 +178,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
     function test_givenStateDefeated_reverts() public {
         vm.roll(block.number + proposalUpdatablePeriodInBlocks + VOTING_DELAY);
         vm.prank(proposer);
-        dao.castVote(proposalId, 0);
+        dao.castRefundableVote(tokenIds, proposalId, 0);
         vm.roll(block.number + VOTING_PERIOD);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Defeated);
 
@@ -194,7 +196,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
     function test_givenStateExpired_reverts() public {
         vm.roll(block.number + proposalUpdatablePeriodInBlocks + VOTING_DELAY);
         vm.prank(proposer);
-        dao.castVote(proposalId, 1);
+        dao.castRefundableVote(tokenIds, proposalId, 1);
         vm.roll(block.number + VOTING_PERIOD);
         dao.queue(proposalId);
         vm.warp(block.timestamp + TIMELOCK_DELAY + timelock.GRACE_PERIOD());
@@ -232,7 +234,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
             block.number + proposalUpdatablePeriodInBlocks + VOTING_DELAY + VOTING_PERIOD - lastMinuteWindowInBlocks
         );
         vm.prank(proposer);
-        dao.castVote(proposalId, 1);
+        dao.castRefundableVote(tokenIds, proposalId, 1);
         vm.roll(block.number + lastMinuteWindowInBlocks);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.ObjectionPeriod);
 

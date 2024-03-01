@@ -14,6 +14,7 @@ abstract contract ZeroState is NounsDAOLogicBaseTest {
     address signerWithVote;
     uint256 signerWithVotePK;
     address target = makeAddr('target');
+    uint256[] tokenIds;
 
     event ProposalCanceled(uint256 id);
 }
@@ -29,6 +30,7 @@ abstract contract ProposalUpdatableState is ZeroState {
         nounsToken.transferFrom(minter, signerWithVote, 1);
         vm.roll(block.number + 1);
         vm.stopPrank();
+        tokenIds = [1];
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('target'), 0, '', '');
         uint256 expirationTimestamp = block.timestamp + 1234;
@@ -130,7 +132,7 @@ abstract contract ProposalObjectionPeriodState is ProposalActiveState {
 
         vm.roll(dao.proposalsV3(proposalId).endBlock - 1);
         vm.prank(signerWithVote);
-        dao.castVote(proposalId, 1);
+        dao.castRefundableVote(tokenIds, proposalId, 1);
 
         vm.roll(dao.proposalsV3(proposalId).endBlock + 1);
         assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.ObjectionPeriod));
@@ -148,7 +150,7 @@ abstract contract ProposalSucceededState is ProposalActiveState {
         super.setUp();
 
         vm.prank(signerWithVote);
-        dao.castVote(proposalId, 1);
+        dao.castRefundableVote(tokenIds, proposalId, 1);
 
         vm.roll(dao.proposalsV3(proposalId).endBlock + 1);
         assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Succeeded));

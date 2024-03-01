@@ -512,6 +512,10 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
         return ds.getReceipt(proposalId, voter);
     }
 
+    function votingReceipt(uint256 proposalId, uint256 tokenId) external view returns (bool hasVoted, uint8 support) {
+        return ds.votingReceipt(proposalId, tokenId);
+    }
+
     /**
      * @notice Returns the proposal details given a proposal id.
      *     The `quorumVotes` member holds the *current* quorum, given the current votes.
@@ -664,15 +668,6 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
     }
 
     /**
-     * @notice Cast a vote for a proposal
-     * @param proposalId The id of the proposal to vote on
-     * @param support The support value for the vote. 0=against, 1=for, 2=abstain
-     */
-    function castVote(uint256 proposalId, uint8 support) external {
-        ds.castVote(proposalId, support);
-    }
-
-    /**
      * @notice Cast a vote for a proposal, asking the DAO to refund gas costs.
      * Users with > 0 votes receive refunds. Refunds are partial when using a gas priority fee higher than the DAO's cap.
      * Refunds are partial when the DAO's balance is insufficient.
@@ -682,8 +677,8 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * @param support The support value for the vote. 0=against, 1=for, 2=abstain
      * @dev Reentrancy is defended against in `castVoteInternal` at the `receipt.hasVoted == false` require statement.
      */
-    function castRefundableVote(uint256 proposalId, uint8 support) external {
-        ds.castRefundableVote(proposalId, support, 0);
+    function castRefundableVote(uint256[] calldata tokenIds, uint256 proposalId, uint8 support) external {
+        ds.castRefundableVote(tokenIds, proposalId, support, 0);
     }
 
     /**
@@ -697,8 +692,13 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * @param clientId The ID of the client that faciliated posting the vote onchain
      * @dev Reentrancy is defended against in `castVoteInternal` at the `receipt.hasVoted == false` require statement.
      */
-    function castRefundableVote(uint256 proposalId, uint8 support, uint32 clientId) external {
-        ds.castRefundableVote(proposalId, support, clientId);
+    function castRefundableVote(
+        uint256[] calldata tokenIds,
+        uint256 proposalId,
+        uint8 support,
+        uint32 clientId
+    ) external {
+        ds.castRefundableVote(tokenIds, proposalId, support, clientId);
     }
 
     /**
@@ -712,8 +712,13 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * @param reason The reason given for the vote by the voter
      * @dev Reentrancy is defended against in `castVoteInternal` at the `receipt.hasVoted == false` require statement.
      */
-    function castRefundableVoteWithReason(uint256 proposalId, uint8 support, string calldata reason) public {
-        ds.castRefundableVoteWithReason(proposalId, support, reason, 0);
+    function castRefundableVoteWithReason(
+        uint256[] calldata tokenIds,
+        uint256 proposalId,
+        uint8 support,
+        string calldata reason
+    ) public {
+        ds.castRefundableVoteWithReason(tokenIds, proposalId, support, reason, 0);
     }
 
     /**
@@ -729,30 +734,13 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * @dev Reentrancy is defended against in `castVoteInternal` at the `receipt.hasVoted == false` require statement.
      */
     function castRefundableVoteWithReason(
+        uint256[] calldata tokenIds,
         uint256 proposalId,
         uint8 support,
         string calldata reason,
         uint32 clientId
     ) public {
-        ds.castRefundableVoteWithReason(proposalId, support, reason, clientId);
-    }
-
-    /**
-     * @notice Cast a vote for a proposal with a reason
-     * @param proposalId The id of the proposal to vote on
-     * @param support The support value for the vote. 0=against, 1=for, 2=abstain
-     * @param reason The reason given for the vote by the voter
-     */
-    function castVoteWithReason(uint256 proposalId, uint8 support, string calldata reason) external {
-        ds.castVoteWithReason(proposalId, support, reason);
-    }
-
-    /**
-     * @notice Cast a vote for a proposal by signature
-     * @dev External function that accepts EIP-712 signatures for voting on proposals.
-     */
-    function castVoteBySig(uint256 proposalId, uint8 support, uint8 v, bytes32 r, bytes32 s) external {
-        ds.castVoteBySig(proposalId, support, v, r, s);
+        ds.castRefundableVoteWithReason(tokenIds, proposalId, support, reason, clientId);
     }
 
     /**

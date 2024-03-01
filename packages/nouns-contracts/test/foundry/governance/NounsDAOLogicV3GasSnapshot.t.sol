@@ -101,19 +101,16 @@ abstract contract NounsDAOLogic_GasSnapshot_castVote is NounsDAOLogicSharedBaseT
     }
 
     function test_castVote_against() public {
-        vm.prank(nouner);
-        daoProxy.castVote(1, 0);
+        vote(nouner, 1, 0);
     }
 
     function test_castVoteWithReason() public {
-        vm.prank(nouner);
-        daoProxy.castVoteWithReason(1, 0, "I don't like this proposal");
+        voteWithReason(nouner, 1, 0, "I don't like this proposal");
     }
 
     function test_castVote_lastMinuteFor() public {
         vm.roll(block.number + VOTING_PERIOD - LAST_MINUTE_BLOCKS);
-        vm.prank(nouner);
-        daoProxy.castVote(1, 1);
+        vote(nouner, 1, 1);
     }
 }
 
@@ -137,8 +134,7 @@ abstract contract NounsDAOLogic_GasSnapshot_castVoteDuringObjectionPeriod is Nou
 
         // activate objection period
         vm.roll(block.number + VOTING_PERIOD - LAST_MINUTE_BLOCKS);
-        vm.prank(proposer);
-        daoProxy.castVote(1, 1);
+        vote(proposer, 1, 1);
         // enter objection period
         vm.roll(block.number + LAST_MINUTE_BLOCKS + 1);
     }
@@ -162,8 +158,7 @@ abstract contract NounsDAOLogic_GasSnapshot_castVoteDuringObjectionPeriod is Nou
     }
 
     function test_castVote_duringObjectionPeriod_against() public {
-        vm.prank(nouner);
-        daoProxy.castVote(1, 0);
+        vote(nouner, 1, 0);
     }
 }
 

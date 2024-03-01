@@ -19,6 +19,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
     address proposer = makeAddr('proposerWithVote');
     address[] _signers;
     uint256[] _signerPKs;
+    uint256[] signer0TokenIds;
 
     uint256 defaultExpirationTimestamp;
     uint256 proposalId;
@@ -35,6 +36,10 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
 
             nounsToken.mint();
             nounsToken.transferFrom(minter, signer, i + 1);
+
+            if (i == 0) {
+                signer0TokenIds.push(i + 1);
+            }
         }
 
         vm.roll(block.number + 1);
@@ -599,10 +604,10 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         dao.updateProposalBySigs(proposalId, sigs, txs.targets, txs.values, txs.signatures, txs.calldatas, '', '');
 
         // Succeeded
-        vm.prank(proposer);
-        dao.castVote(proposalId, 1);
+        // vm.prank(proposer);
+        // dao.castRefundableVote(proposalId, 1);
         vm.prank(_signers[0]);
-        dao.castVote(proposalId, 1);
+        dao.castRefundableVote(signer0TokenIds, proposalId, 1);
         vm.roll(block.number + VOTING_PERIOD);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Succeeded);
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -683,10 +688,10 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         );
 
         vm.roll(block.number + proposalUpdatablePeriodInBlocks + VOTING_DELAY);
-        vm.prank(proposer);
-        dao.castVote(proposalId, 1);
+        // vm.prank(proposer);
+        // dao.castRefundableVote(proposalId, 1);
         vm.prank(_signers[0]);
-        dao.castVote(proposalId, 1);
+        dao.castRefundableVote(signer0TokenIds, proposalId, 1);
         vm.roll(block.number + VOTING_PERIOD);
         dao.queue(proposalId);
         vm.warp(block.timestamp + TIMELOCK_DELAY + timelock.GRACE_PERIOD());
@@ -737,10 +742,10 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         vm.roll(
             block.number + proposalUpdatablePeriodInBlocks + VOTING_DELAY + VOTING_PERIOD - lastMinuteWindowInBlocks
         );
-        vm.prank(proposer);
-        dao.castVote(proposalId, 1);
+        // vm.prank(proposer);
+        // dao.castRefundableVote(proposalId, 1);
         vm.prank(_signers[0]);
-        dao.castVote(proposalId, 1);
+        dao.castRefundableVote(signer0TokenIds, proposalId, 1);
         vm.roll(block.number + lastMinuteWindowInBlocks);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.ObjectionPeriod);
 

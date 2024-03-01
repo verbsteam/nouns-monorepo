@@ -247,6 +247,8 @@ interface INounsDAOLogic {
      */
     function getReceipt(uint256 proposalId, address voter) external view returns (NounsDAOTypes.Receipt memory);
 
+    function votingReceipt(uint256 proposalId, uint256 tokenId) external view returns (bool hasVoted, uint8 support);
+
     /**
      * @notice Returns the proposal details given a proposal id.
      *     The `quorumVotes` member holds the *current* quorum, given the current votes.
@@ -589,14 +591,12 @@ interface INounsDAOLogic {
      */
     function veto(uint256 proposalId) external;
 
-    /**
-     * @notice Cast a vote for a proposal
-     * @param proposalId The id of the proposal to vote on
-     * @param support The support value for the vote. 0=against, 1=for, 2=abstain
-     */
-    function castVote(uint256 proposalId, uint8 support) external;
-
-    function castRefundableVote(uint256 proposalId, uint8 support, uint32 clientId) external;
+    function castRefundableVote(
+        uint256[] calldata tokenIds,
+        uint256 proposalId,
+        uint8 support,
+        uint32 clientId
+    ) external;
 
     /**
      * @notice Cast a vote for a proposal, asking the DAO to refund gas costs.
@@ -608,9 +608,10 @@ interface INounsDAOLogic {
      * @param support The support value for the vote. 0=against, 1=for, 2=abstain
      * @dev Reentrancy is defended against in `castVoteInternal` at the `receipt.hasVoted == false` require statement.
      */
-    function castRefundableVote(uint256 proposalId, uint8 support) external;
+    function castRefundableVote(uint256[] calldata tokenIds, uint256 proposalId, uint8 support) external;
 
     function castRefundableVoteWithReason(
+        uint256[] calldata tokenIds,
         uint256 proposalId,
         uint8 support,
         string calldata reason,
@@ -628,21 +629,12 @@ interface INounsDAOLogic {
      * @param reason The reason given for the vote by the voter
      * @dev Reentrancy is defended against in `castVoteInternal` at the `receipt.hasVoted == false` require statement.
      */
-    function castRefundableVoteWithReason(uint256 proposalId, uint8 support, string calldata reason) external;
-
-    /**
-     * @notice Cast a vote for a proposal with a reason
-     * @param proposalId The id of the proposal to vote on
-     * @param support The support value for the vote. 0=against, 1=for, 2=abstain
-     * @param reason The reason given for the vote by the voter
-     */
-    function castVoteWithReason(uint256 proposalId, uint8 support, string calldata reason) external;
-
-    /**
-     * @notice Cast a vote for a proposal by signature
-     * @dev External function that accepts EIP-712 signatures for voting on proposals.
-     */
-    function castVoteBySig(uint256 proposalId, uint8 support, uint8 v, bytes32 r, bytes32 s) external;
+    function castRefundableVoteWithReason(
+        uint256[] calldata tokenIds,
+        uint256 proposalId,
+        uint8 support,
+        string calldata reason
+    ) external;
 
     /**
      * ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░

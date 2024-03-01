@@ -12,12 +12,15 @@ import { NounsDAOExecutor } from '../../../contracts/governance/NounsDAOExecutor
 import { INounsTokenForkLike } from '../../../contracts/governance/fork/newdao/governance/INounsTokenForkLike.sol';
 import { Utils } from './Utils.sol';
 import { NounsTokenLike } from '../../../contracts/governance/NounsDAOInterfaces.sol';
+import { DelegationHelpers } from './DelegationHelpers.sol';
 
 interface DAOLogicFork {
     function _setQuorumVotesBPS(uint256 newQuorumVotesBPS) external;
 }
 
 abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
+    using DelegationHelpers for address;
+
     INounsDAOLogic daoProxy;
     NounsToken nounsToken;
     NounsDAOExecutor timelock = new NounsDAOExecutor(address(1), TIMELOCK_DELAY);
@@ -118,8 +121,15 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
     }
 
     function vote(address voter, uint256 proposalId, uint8 support) internal {
-        vm.prank(voter);
-        daoProxy.castVote(proposalId, support);
+        vm.startPrank(voter);
+        daoProxy.castRefundableVote(voter.allVotesOf(daoProxy), proposalId, support);
+        vm.stopPrank();
+    }
+
+    function voteWithReason(address voter, uint256 proposalId, uint8 support, string memory reason) internal {
+        vm.startPrank(voter);
+        daoProxy.castRefundableVoteWithReason(voter.allVotesOf(daoProxy), proposalId, support, reason);
+        vm.stopPrank();
     }
 
     function deployForkDAOProxy() internal returns (INounsDAOLogic) {

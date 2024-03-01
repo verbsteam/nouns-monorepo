@@ -14,8 +14,11 @@ import { IProxyRegistry } from '../../../contracts/external/opensea/IProxyRegist
 import { NounsDAOExecutorV2 } from '../../../contracts/governance/NounsDAOExecutorV2.sol';
 import { NounsDAOForkEscrow } from '../../../contracts/governance/fork/NounsDAOForkEscrow.sol';
 import { INounsDAOLogic } from '../../../contracts/interfaces/INounsDAOLogic.sol';
+import { DelegationHelpers } from '../helpers/DelegationHelpers.sol';
 
 abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
+    using DelegationHelpers for address;
+
     event ProposalUpdated(
         uint256 indexed id,
         address indexed proposer,
@@ -83,6 +86,18 @@ abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
         minter = nounsToken.minter();
         timelock = NounsDAOExecutorV2(payable(address(dao.timelock())));
         forkEscrow = address(dao.forkEscrow());
+    }
+
+    function vote(address voter_, uint256 proposalId_, uint8 support, string memory reason) internal {
+        vm.startPrank(voter_);
+        dao.castRefundableVoteWithReason(voter_.allVotesOf(dao), proposalId_, support, reason);
+        vm.stopPrank();
+    }
+
+    function vote(address voter_, uint256 proposalId_, uint8 support, string memory reason, uint32 clientId) internal {
+        vm.startPrank(voter_);
+        dao.castRefundableVoteWithReason(voter_.allVotesOf(dao), proposalId_, support, reason, clientId);
+        vm.stopPrank();
     }
 
     function mintTo(address to) internal returns (uint256 tokenID) {

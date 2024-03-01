@@ -212,12 +212,9 @@ contract SupplyIncreasedStateTest is SupplyIncreasedState {
     function testProposalPassesWhenForVotesAboveQuorumAndAgainstVotes() public {
         vm.roll(block.number + 1);
 
-        vm.prank(user1);
-        daoProxy.castVote(proposalId, 1); // 3 votes
-        vm.prank(user2);
-        daoProxy.castVote(proposalId, 1); // 3 votes
-        vm.prank(user3);
-        daoProxy.castVote(proposalId, 0); // 5 votes
+        vote(user1, proposalId, 1); // 3 votes
+        vote(user2, proposalId, 1); // 3 votes
+        vote(user3, proposalId, 0); // 5 votes
 
         assertEq(daoProxy.proposals(proposalId).forVotes, 6);
         assertEq(daoProxy.proposals(proposalId).againstVotes, 5);

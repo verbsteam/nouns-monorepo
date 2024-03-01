@@ -23,6 +23,7 @@ import {
   INounsDAOLogic__factory,
   INounsDAOLogic,
   NounDelegationToken__factory,
+  NounsDAOVotes__factory,
 } from '../typechain';
 import ImageData from '../files/image-data-v1.json';
 import ImageDataV2 from '../files/image-data-v2.json';
@@ -358,17 +359,26 @@ function dataToDescriptorInput(data: string[]): {
 }
 
 export const deployGovernorV3 = async (deployer: SignerWithAddress): Promise<NounsDAOLogicV4> => {
+  const NounsDAODelegation = await (
+    await ethers.getContractFactory('NounsDAODelegation', deployer)
+  ).deploy();
+
+  // const NounsDAOVotes = await (await ethers.getContractFactory('NounsDAOVotes', deployer)).deploy();
+
+  const NounsDAOVotes = await new NounsDAOVotes__factory(
+    {
+      'contracts/governance/NounsDAODelegation.sol:NounsDAODelegation': NounsDAODelegation.address,
+    },
+    deployer,
+  ).deploy();
+
   const NounsDAOProposals = await (
     await ethers.getContractFactory('NounsDAOProposals', deployer)
   ).deploy();
   const NounsDAOAdmin = await (await ethers.getContractFactory('NounsDAOAdmin', deployer)).deploy();
   const NounsDAOFork = await (await ethers.getContractFactory('NounsDAOFork', deployer)).deploy();
-  const NounsDAOVotes = await (await ethers.getContractFactory('NounsDAOVotes', deployer)).deploy();
   const NounsDAODynamicQuorum = await (
     await ethers.getContractFactory('NounsDAODynamicQuorum', deployer)
-  ).deploy();
-  const NounsDAODelegation = await (
-    await ethers.getContractFactory('NounsDAODelegation', deployer)
   ).deploy();
 
   return await new NounsDaoLogicFactory(
