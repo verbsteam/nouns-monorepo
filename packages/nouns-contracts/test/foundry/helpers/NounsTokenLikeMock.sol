@@ -24,11 +24,7 @@ contract NounsTokenLikeMock is NounsTokenLike {
         return 0;
     }
 
-    function setPriorVotes(
-        address account,
-        uint256 blockNumber,
-        uint96 votes
-    ) external {
+    function setPriorVotes(address account, uint256 blockNumber, uint96 votes) external {
         priorVotes[account][blockNumber] = votes;
     }
 
@@ -40,19 +36,11 @@ contract NounsTokenLikeMock is NounsTokenLike {
         return address(0);
     }
 
-    function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) external {
+    function transferFrom(address from, address to, uint256 tokenId) external {
         // noop
     }
 
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) external {
+    function safeTransferFrom(address from, address to, uint256 tokenId) external {
         // noop
     }
 
@@ -69,4 +57,8 @@ contract NounsTokenLikeMock is NounsTokenLike {
     }
 
     function setApprovalForAll(address operator, bool approved) external {}
+
+    function tokenOfOwnerByIndex(address, uint256) public view virtual override returns (uint256) {
+        return 0;
+    }
 }

@@ -8,6 +8,7 @@ import { NounsDAOProposals } from '../../../contracts/governance/NounsDAOProposa
 abstract contract ExecutableProposalState is NounsDAOLogicBaseTest {
     address user = makeAddr('user');
     uint256 proposalId;
+    uint256[] tokenIds;
 
     function setUp() public virtual override {
         super.setUp();
@@ -17,6 +18,7 @@ abstract contract ExecutableProposalState is NounsDAOLogicBaseTest {
         nounsToken.transferFrom(minter, user, 1);
         vm.stopPrank();
         vm.roll(block.number + 1);
+        tokenIds = [1];
 
         // prep an executable proposal
         proposalId = propose(user, makeAddr('target'), 0, '', '', '');
@@ -24,7 +26,7 @@ abstract contract ExecutableProposalState is NounsDAOLogicBaseTest {
         vm.roll(block.number + dao.votingDelay() + dao.proposalUpdatablePeriodInBlocks() + 1);
 
         vm.prank(user);
-        dao.castVote(proposalId, 1);
+        dao.castRefundableVote(tokenIds, proposalId, 1);
 
         vm.roll(block.number + dao.votingPeriod());
         dao.queue(proposalId);
@@ -40,8 +42,6 @@ contract ExecutableProposalStateTest is ExecutableProposalState {
 }
 
 abstract contract ExecutableProposalWithActiveForkState is ExecutableProposalState {
-    uint256[] tokenIds;
-
     function setUp() public virtual override {
         super.setUp();
 

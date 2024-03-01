@@ -23,6 +23,7 @@ import { NounsDAOFork } from './fork/NounsDAOFork.sol';
 import { SignatureChecker } from '../external/openzeppelin/SignatureChecker.sol';
 import { ECDSA } from '../external/openzeppelin/ECDSA.sol';
 import { SafeCast } from '@openzeppelin/contracts/utils/math/SafeCast.sol';
+import { NounsDAODelegation } from './NounsDAODelegation.sol';
 
 library NounsDAOProposals {
     using NounsDAODynamicQuorum for NounsDAOTypes.Storage;
@@ -80,18 +81,22 @@ library NounsDAOProposals {
      */
     function propose(
         NounsDAOTypes.Storage storage ds,
+        uint256[] calldata tokenIds,
         ProposalTxs memory txs,
         string memory description,
         uint32 clientId
     ) internal returns (uint256) {
-        uint256 adjustedTotalSupply = ds.adjustedTotalSupply();
-        uint256 proposalThreshold_ = checkPropThreshold(
-            ds,
-            ds.nouns.getPriorVotes(msg.sender, block.number - 1),
-            adjustedTotalSupply
-        );
         checkProposalTxs(txs);
-        checkNoActiveProp(ds, msg.sender);
+
+        uint256 adjustedTotalSupply = ds.adjustedTotalSupply();
+        uint256 proposalThreshold_ = proposalThreshold(ds, adjustedTotalSupply);
+        if (tokenIds.length <= proposalThreshold_) revert VotesBelowProposalThreshold();
+
+        require(
+            NounsDAODelegation.isDelegate(msg.sender, tokenIds),
+            'msg.sender is not the delegate of provided tokenIds'
+        );
+        require(tokensDontHaveActiveProposals(ds, tokenIds));
 
         ds.proposalCount = ds.proposalCount + 1;
         uint32 proposalId = SafeCast.toUint32(ds.proposalCount);
@@ -104,6 +109,11 @@ library NounsDAOProposals {
             clientId
         );
         ds.latestProposalIds[msg.sender] = proposalId;
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            // TODO: potential gas expensive
+            ds.latestProposalIdsByTokenId[tokenIds[i]] = newProposal.id;
+        }
 
         emitNewPropEvents(
             newProposal,
@@ -128,11 +138,12 @@ library NounsDAOProposals {
      */
     function proposeOnTimelockV1(
         NounsDAOTypes.Storage storage ds,
+        uint256[] calldata tokenIds,
         ProposalTxs memory txs,
         string memory description,
         uint32 clientId
     ) internal returns (uint256) {
-        uint256 newProposalId = propose(ds, txs, description, clientId);
+        uint256 newProposalId = propose(ds, tokenIds, txs, description, clientId);
 
         NounsDAOTypes.Proposal storage newProposal = ds._proposals[newProposalId];
         newProposal.executeOnTimelockV1 = true;
@@ -170,7 +181,7 @@ library NounsDAOProposals {
         ProposalTemp memory temp;
         ds.proposalCount = ds.proposalCount + 1;
         temp.proposalId = SafeCast.toUint32(ds.proposalCount);
-        temp.adjustedTotalSupply = ds.adjustedTotalSupply();
+        temp.adjustedTotalSupply = NounsDAOFork.adjustedTotalSupply(ds);
         temp.propThreshold = proposalThreshold(ds, temp.adjustedTotalSupply);
 
         NounsDAOTypes.Proposal storage newProposal = createNewProposal(
@@ -992,5 +1003,22 @@ library NounsDAOProposals {
 
     function bps2Uint(uint256 bps, uint256 number) internal pure returns (uint256) {
         return (number * bps) / 10000;
+    }
+
+    function tokensDontHaveActiveProposals(
+        NounsDAOTypes.Storage storage ds,
+        uint256[] memory tokenIds
+    ) internal view returns (bool) {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 proposalId = ds.latestProposalIdsByTokenId[tokenIds[i]];
+            NounsDAOTypes.ProposalState proposalState = state(ds, proposalId);
+            if (
+                proposalState == NounsDAOTypes.ProposalState.Active ||
+                proposalState == NounsDAOTypes.ProposalState.Pending
+            ) {
+                return false;
+            }
+        }
+        return true;
     }
 }

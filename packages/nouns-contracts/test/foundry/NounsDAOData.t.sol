@@ -981,7 +981,6 @@ contract NounsDAOData_CreateCandidateToUpdateProposalTest is NounsDAODataBaseTes
         bytes memory data,
         string memory description
     ) internal returns (uint256) {
-        vm.prank(proposer);
         address[] memory targets = new address[](1);
         targets[0] = target;
         uint256[] memory values = new uint256[](1);
@@ -990,7 +989,13 @@ contract NounsDAOData_CreateCandidateToUpdateProposalTest is NounsDAODataBaseTes
         signatures[0] = signature;
         bytes[] memory calldatas = new bytes[](1);
         calldatas[0] = data;
-        return nounsDao.propose(targets, values, signatures, calldatas, description);
+
+        NounsTokenLike nouns = nounsDao.nouns();
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = nouns.tokenOfOwnerByIndex(proposer, 0);
+
+        vm.prank(proposer);
+        return nounsDao.propose(tokenIds, targets, values, signatures, calldatas, description);
     }
 
     function proposeBySigs(

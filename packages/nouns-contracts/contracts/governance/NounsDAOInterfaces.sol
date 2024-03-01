@@ -34,6 +34,8 @@
 
 pragma solidity ^0.8.19;
 
+import { BitMaps } from '@openzeppelin/contracts/utils/structs/BitMaps.sol';
+
 interface NounsDAOEventsV3 {
     /// @notice An event emitted when a new proposal is created
     event ProposalCreated(
@@ -69,7 +71,14 @@ interface NounsDAOEventsV3 {
     /// @param support Support value for the vote. 0=against, 1=for, 2=abstain
     /// @param votes Number of votes which were cast by the voter
     /// @param reason The reason given for the vote by the voter
-    event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 votes, string reason);
+    event VoteCast(
+        address indexed voter,
+        uint256[] tokenIds,
+        uint256 proposalId,
+        uint8 support,
+        uint256 votes,
+        string reason
+    );
 
     /// @notice An event emitted when a proposal has been canceled
     event ProposalCanceled(uint256 id);
@@ -298,6 +307,8 @@ interface NounsTokenLike {
     function mint() external returns (uint256);
 
     function setApprovalForAll(address operator, bool approved) external;
+
+    function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256);
 }
 
 interface IForkDAODeployer {
@@ -404,6 +415,9 @@ interface NounsDAOTypes {
         uint256 forkThresholdBPS;
         /// @notice Address of the original timelock
         INounsDAOExecutor timelockV1;
+        address delegationToken;
+        mapping(uint256 tokenId => uint256 proposalId) latestProposalIdsByTokenId;
+        mapping(uint256 proposalId => BitMaps.BitMap) votingReceipts;
     }
 
     struct Proposal {

@@ -20,9 +20,12 @@ pragma solidity ^0.8.19;
 import './NounsDAOInterfaces.sol';
 import { NounsDAOProposals } from './NounsDAOProposals.sol';
 import { SafeCast } from '@openzeppelin/contracts/utils/math/SafeCast.sol';
+import { VotingBitMaps } from './VotingBitMaps.sol';
+import { NounsDAODelegation } from './NounsDAODelegation.sol';
 
 library NounsDAOVotes {
     using NounsDAOProposals for NounsDAOTypes.Storage;
+    using VotingBitMaps for BitMaps.BitMap;
 
     error CanOnlyVoteAgainstDuringObjectionPeriod();
 
@@ -32,7 +35,14 @@ library NounsDAOVotes {
     /// @param support Support value for the vote. 0=against, 1=for, 2=abstain
     /// @param votes Number of votes which were cast by the voter
     /// @param reason The reason given for the vote by the voter
-    event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 votes, string reason);
+    event VoteCast(
+        address indexed voter,
+        uint256[] tokenIds,
+        uint256 proposalId,
+        uint8 support,
+        uint256 votes,
+        string reason
+    );
 
     /// @notice Emitted when a voter cast a vote requesting a gas refund.
     event RefundableVote(address indexed voter, uint256 refundAmount, bool refundSent);
@@ -62,13 +72,12 @@ library NounsDAOVotes {
     /// @notice The maximum basefee the DAO will refund voters on
     uint256 public constant MAX_REFUND_BASE_FEE = 200 gwei;
 
-    /**
-     * @notice Cast a vote for a proposal
-     * @param proposalId The id of the proposal to vote on
-     * @param support The support value for the vote. 0=against, 1=for, 2=abstain
-     */
-    function castVote(NounsDAOTypes.Storage storage ds, uint256 proposalId, uint8 support) external {
-        emit VoteCast(msg.sender, proposalId, support, castVoteInternal(ds, msg.sender, proposalId, support, 0), '');
+    function votingReceipt(
+        NounsDAOTypes.Storage storage ds,
+        uint256 proposalId,
+        uint256 tokenId
+    ) external view returns (bool hasVoted, uint8 support) {
+        return ds.votingReceipts[proposalId].getVoting(tokenId);
     }
 
     /**
@@ -84,11 +93,12 @@ library NounsDAOVotes {
      */
     function castRefundableVote(
         NounsDAOTypes.Storage storage ds,
+        uint256[] calldata tokenIds,
         uint256 proposalId,
         uint8 support,
         uint32 clientId
     ) external {
-        castRefundableVoteInternal(ds, proposalId, support, '', clientId);
+        castRefundableVoteInternal(ds, tokenIds, proposalId, support, '', clientId);
     }
 
     /**
@@ -104,12 +114,13 @@ library NounsDAOVotes {
      */
     function castRefundableVoteWithReason(
         NounsDAOTypes.Storage storage ds,
+        uint256[] calldata tokenIds,
         uint256 proposalId,
         uint8 support,
         string calldata reason,
         uint32 clientId
     ) external {
-        castRefundableVoteInternal(ds, proposalId, support, reason, clientId);
+        castRefundableVoteInternal(ds, tokenIds, proposalId, support, reason, clientId);
     }
 
     /**
@@ -122,61 +133,19 @@ library NounsDAOVotes {
      */
     function castRefundableVoteInternal(
         NounsDAOTypes.Storage storage ds,
+        uint256[] calldata tokenIds,
         uint256 proposalId,
         uint8 support,
         string memory reason,
         uint32 clientId
     ) internal {
         uint256 startGas = gasleft();
-        uint96 votes = castVoteInternal(ds, msg.sender, proposalId, support, clientId);
-        emit VoteCast(msg.sender, proposalId, support, votes, reason);
+        castVoteInternal(ds, tokenIds, proposalId, support, clientId);
+        emit VoteCast(msg.sender, tokenIds, proposalId, support, tokenIds.length, reason);
         if (clientId > 0) emit NounsDAOEventsV3.VoteCastWithClientId(msg.sender, proposalId, clientId);
-        if (votes > 0) {
+        if (tokenIds.length > 0) {
             _refundGas(startGas);
         }
-    }
-
-    /**
-     * @notice Cast a vote for a proposal with a reason
-     * @param proposalId The id of the proposal to vote on
-     * @param support The support value for the vote. 0=against, 1=for, 2=abstain
-     * @param reason The reason given for the vote by the voter
-     */
-    function castVoteWithReason(
-        NounsDAOTypes.Storage storage ds,
-        uint256 proposalId,
-        uint8 support,
-        string calldata reason
-    ) external {
-        emit VoteCast(
-            msg.sender,
-            proposalId,
-            support,
-            castVoteInternal(ds, msg.sender, proposalId, support, 0),
-            reason
-        );
-    }
-
-    /**
-     * @notice Cast a vote for a proposal by signature
-     * @dev External function that accepts EIP-712 signatures for voting on proposals.
-     */
-    function castVoteBySig(
-        NounsDAOTypes.Storage storage ds,
-        uint256 proposalId,
-        uint8 support,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external {
-        bytes32 domainSeparator = keccak256(
-            abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), block.chainid, address(this))
-        );
-        bytes32 structHash = keccak256(abi.encode(BALLOT_TYPEHASH, proposalId, support));
-        bytes32 digest = keccak256(abi.encodePacked('\x19\x01', domainSeparator, structHash));
-        address signatory = ecrecover(digest, v, r, s);
-        require(signatory != address(0), 'NounsDAO::castVoteBySig: invalid signature');
-        emit VoteCast(signatory, proposalId, support, castVoteInternal(ds, signatory, proposalId, support, 0), '');
     }
 
     /**
@@ -184,33 +153,35 @@ library NounsDAOVotes {
      * In case of a vote during the 'last minute window', which changes the proposal outcome from being defeated to
      * passing, and objection period is adding to the proposal's voting period.
      * During the objection period, only votes against a proposal can be cast.
-     * @param voter The voter that is casting their vote
      * @param proposalId The id of the proposal to vote on
      * @param support The support value for the vote. 0=against, 1=for, 2=abstain
      * @param clientId The ID of the client that faciliated posting the vote onchain
-     * @return votes The number of votes cast
      */
     function castVoteInternal(
         NounsDAOTypes.Storage storage ds,
-        address voter,
+        uint256[] calldata tokenIds,
         uint256 proposalId,
         uint8 support,
         uint32 clientId
-    ) internal returns (uint96 votes) {
+    ) internal {
         NounsDAOTypes.ProposalState proposalState = ds.stateInternal(proposalId);
+        require(
+            NounsDAODelegation.isDelegate(msg.sender, tokenIds),
+            'msg.sender is not the delegate of provided tokenIds'
+        );
 
         if (proposalState == NounsDAOTypes.ProposalState.Active) {
-            votes = castVoteDuringVotingPeriodInternal(ds, proposalId, voter, support);
+            castVoteDuringVotingPeriodInternal(ds, proposalId, tokenIds, support);
         } else if (proposalState == NounsDAOTypes.ProposalState.ObjectionPeriod) {
             if (support != 0) revert CanOnlyVoteAgainstDuringObjectionPeriod();
-            votes = castObjectionInternal(ds, proposalId, voter);
+            castObjectionInternal(ds, proposalId, tokenIds);
         } else {
             revert('NounsDAO::castVoteInternal: voting is closed');
         }
 
         NounsDAOTypes.ClientVoteData memory voteData = ds._proposals[proposalId].voteClients[clientId];
         ds._proposals[proposalId].voteClients[clientId] = NounsDAOTypes.ClientVoteData({
-            votes: uint32(voteData.votes + votes),
+            votes: uint32(voteData.votes + tokenIds.length),
             txs: voteData.txs + 1
         });
     }
@@ -219,22 +190,22 @@ library NounsDAOVotes {
      * @notice Internal function that handles voting logic during the voting period.
      * @dev Assumes it's only called by `castVoteInternal` which ensures the proposal is active.
      * @param proposalId The id of the proposal being voted on
-     * @param voter The address of the voter
      * @param support The support value for the vote. 0=against, 1=for, 2=abstain
-     * @return The number of votes cast
      */
     function castVoteDuringVotingPeriodInternal(
         NounsDAOTypes.Storage storage ds,
         uint256 proposalId,
-        address voter,
+        uint256[] calldata tokenIds,
         uint8 support
-    ) internal returns (uint96) {
+    ) internal {
         require(support <= 2, 'NounsDAO::castVoteDuringVotingPeriodInternal: invalid vote type');
         NounsDAOTypes.Proposal storage proposal = ds._proposals[proposalId];
-        NounsDAOTypes.Receipt storage receipt = proposal.receipts[voter];
-        require(receipt.hasVoted == false, 'NounsDAO::castVoteDuringVotingPeriodInternal: voter already voted');
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            (bool hasVoted, ) = ds.votingReceipts[proposalId].getVoting(tokenIds[i]);
+            require(!hasVoted, 'NounsDAO::castVoteDuringVotingPeriodInternal: token already voted');
 
-        uint96 votes = ds.nouns.getPriorVotes(voter, proposal.startBlock);
+            ds.votingReceipts[proposalId].setVoting(tokenIds[i], support);
+        }
 
         bool isForVoteInLastMinuteWindow = false;
         if (support == 1) {
@@ -245,11 +216,11 @@ library NounsDAOVotes {
         if (isForVoteInLastMinuteWindow) isDefeatedBefore = ds.isDefeated(proposal);
 
         if (support == 0) {
-            proposal.againstVotes = proposal.againstVotes + votes;
+            proposal.againstVotes = proposal.againstVotes + tokenIds.length;
         } else if (support == 1) {
-            proposal.forVotes = proposal.forVotes + votes;
+            proposal.forVotes = proposal.forVotes + tokenIds.length;
         } else if (support == 2) {
-            proposal.abstainVotes = proposal.abstainVotes + votes;
+            proposal.abstainVotes = proposal.abstainVotes + tokenIds.length;
         }
 
         if (
@@ -270,12 +241,6 @@ library NounsDAOVotes {
 
             emit ProposalObjectionPeriodSet(proposal.id, proposal.objectionPeriodEndBlock);
         }
-
-        receipt.hasVoted = true;
-        receipt.support = support;
-        receipt.votes = votes;
-
-        return votes;
     }
 
     /**
@@ -284,24 +249,21 @@ library NounsDAOVotes {
      * 1. The proposal is in the objection period state.
      * 2. The vote is an against vote.
      * @param proposalId The id of the proposal being voted on
-     * @param voter The address of the voter
-     * @return The number of votes cast
      */
     function castObjectionInternal(
         NounsDAOTypes.Storage storage ds,
         uint256 proposalId,
-        address voter
-    ) internal returns (uint96) {
+        uint256[] calldata tokenIds
+    ) internal {
         NounsDAOTypes.Proposal storage proposal = ds._proposals[proposalId];
-        NounsDAOTypes.Receipt storage receipt = proposal.receipts[voter];
-        require(receipt.hasVoted == false, 'NounsDAO::castVoteInternal: voter already voted');
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            (bool hasVoted, ) = ds.votingReceipts[proposalId].getVoting(tokenIds[i]);
+            require(!hasVoted, 'already voted');
 
-        uint96 votes = receipt.votes = ds.nouns.getPriorVotes(voter, proposal.startBlock);
-        receipt.hasVoted = true;
-        receipt.support = 0;
-        proposal.againstVotes = proposal.againstVotes + votes;
+            ds.votingReceipts[proposalId].setVoting(tokenIds[i], 0);
+        }
 
-        return votes;
+        proposal.againstVotes = proposal.againstVotes + tokenIds.length;
     }
 
     function _refundGas(uint256 startGas) internal {

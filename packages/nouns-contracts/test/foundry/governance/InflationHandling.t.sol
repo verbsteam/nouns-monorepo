@@ -103,9 +103,12 @@ contract NounsDAOLogic3InflationHandling40TotalSupplyTest is NounsDAOLogicV3Infl
         vm.roll(block.number + 1);
 
         assertEq(nounsToken.getPriorVotes(user1, block.number - 1), 2);
+        uint256[] memory tokenIds = new uint256[](2);
+        tokenIds[0] = 1;
+        tokenIds[1] = 2;
 
         vm.expectRevert(NounsDAOProposals.VotesBelowProposalThreshold.selector);
-        propose(user1, address(0), 0, '', '');
+        propose(user1, tokenIds, address(0), 0, '', '');
     }
 
     function testAllowsProposingIfAboveThreshold() public {
@@ -119,8 +122,12 @@ contract NounsDAOLogic3InflationHandling40TotalSupplyTest is NounsDAOLogicV3Infl
         vm.roll(block.number + 1);
 
         assertEq(nounsToken.getPriorVotes(user1, block.number - 1), 3);
+        uint256[] memory tokenIds = new uint256[](3);
+        tokenIds[0] = 1;
+        tokenIds[1] = 2;
+        tokenIds[2] = 3;
 
-        propose(user1, address(0), 0, '', '');
+        propose(user1, tokenIds, address(0), 0, '', '');
     }
 }
 
@@ -155,7 +162,12 @@ abstract contract TotalSupply40WithAProposalState is NounsDAOLogicV3InflationHan
 
         assertEq(nounsToken.getPriorVotes(user1, block.number - 1), 3);
 
-        proposalId = propose(user1, address(0), 0, '', '');
+        uint256[] memory tokenIds = new uint256[](3);
+        tokenIds[0] = 1;
+        tokenIds[1] = 2;
+        tokenIds[2] = 3;
+
+        proposalId = propose(user1, tokenIds, address(0), 0, '', '');
     }
 }
 
@@ -183,8 +195,13 @@ contract SupplyIncreasedStateTest is SupplyIncreasedState {
     }
 
     function testRejectsProposalsPreviouslyAboveThresholdButNowBelowBecauseSupplyIncreased() public {
+        uint256[] memory tokenIds = new uint256[](3);
+        tokenIds[0] = 1;
+        tokenIds[1] = 2;
+        tokenIds[2] = 3;
+
         vm.expectRevert(NounsDAOProposals.VotesBelowProposalThreshold.selector);
-        propose(user1, address(0), 0, '', '');
+        propose(user1, tokenIds, address(0), 0, '', '');
     }
 
     function testDoesntChangePreviousProposalAttributes() public {
@@ -195,12 +212,9 @@ contract SupplyIncreasedStateTest is SupplyIncreasedState {
     function testProposalPassesWhenForVotesAboveQuorumAndAgainstVotes() public {
         vm.roll(block.number + 1);
 
-        vm.prank(user1);
-        daoProxy.castVote(proposalId, 1); // 3 votes
-        vm.prank(user2);
-        daoProxy.castVote(proposalId, 1); // 3 votes
-        vm.prank(user3);
-        daoProxy.castVote(proposalId, 0); // 5 votes
+        vote(user1, proposalId, 1); // 3 votes
+        vote(user2, proposalId, 1); // 3 votes
+        vote(user3, proposalId, 0); // 5 votes
 
         assertEq(daoProxy.proposals(proposalId).forVotes, 6);
         assertEq(daoProxy.proposals(proposalId).againstVotes, 5);

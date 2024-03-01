@@ -13,11 +13,13 @@ import { NounsToken } from '../../../contracts/NounsToken.sol';
 import { NounsSeeder } from '../../../contracts/NounsSeeder.sol';
 import { IProxyRegistry } from '../../../contracts/external/opensea/IProxyRegistry.sol';
 import { NounsDAOExecutor } from '../../../contracts/governance/NounsDAOExecutor.sol';
+import { NounDelegationToken } from '../../../contracts/governance/NounDelegationToken.sol';
 
 contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
     address proposer = makeAddr('proposerWithVote');
     address[] _signers;
     uint256[] _signerPKs;
+    uint256[] signer0TokenIds;
 
     uint256 defaultExpirationTimestamp;
     uint256 proposalId;
@@ -34,6 +36,10 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
 
             nounsToken.mint();
             nounsToken.transferFrom(minter, signer, i + 1);
+
+            if (i == 0) {
+                signer0TokenIds.push(i + 1);
+            }
         }
 
         vm.roll(block.number + 1);
@@ -598,10 +604,10 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         dao.updateProposalBySigs(proposalId, sigs, txs.targets, txs.values, txs.signatures, txs.calldatas, '', '');
 
         // Succeeded
-        vm.prank(proposer);
-        dao.castVote(proposalId, 1);
+        // vm.prank(proposer);
+        // dao.castRefundableVote(proposalId, 1);
         vm.prank(_signers[0]);
-        dao.castVote(proposalId, 1);
+        dao.castRefundableVote(signer0TokenIds, proposalId, 1);
         vm.roll(block.number + VOTING_PERIOD);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Succeeded);
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -682,10 +688,10 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         );
 
         vm.roll(block.number + proposalUpdatablePeriodInBlocks + VOTING_DELAY);
-        vm.prank(proposer);
-        dao.castVote(proposalId, 1);
+        // vm.prank(proposer);
+        // dao.castRefundableVote(proposalId, 1);
         vm.prank(_signers[0]);
-        dao.castVote(proposalId, 1);
+        dao.castRefundableVote(signer0TokenIds, proposalId, 1);
         vm.roll(block.number + VOTING_PERIOD);
         dao.queue(proposalId);
         vm.warp(block.timestamp + TIMELOCK_DELAY + timelock.GRACE_PERIOD());
@@ -736,10 +742,10 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         vm.roll(
             block.number + proposalUpdatablePeriodInBlocks + VOTING_DELAY + VOTING_PERIOD - lastMinuteWindowInBlocks
         );
-        vm.prank(proposer);
-        dao.castVote(proposalId, 1);
+        // vm.prank(proposer);
+        // dao.castRefundableVote(proposalId, 1);
         vm.prank(_signers[0]);
-        dao.castVote(proposalId, 1);
+        dao.castRefundableVote(signer0TokenIds, proposalId, 1);
         vm.roll(block.number + lastMinuteWindowInBlocks);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.ObjectionPeriod);
 
@@ -748,6 +754,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
     }
 
     function test_givenPropNotBySigs_reverts() public {
+        NounDelegationToken dt = NounDelegationToken(dao.delegationToken());
+
         (
             address[] memory signers,
             uint256[] memory signerPKs,
@@ -767,12 +775,16 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         dao.cancel(proposalId);
 
         // giving proposer enough votes to propose
-        vm.prank(_signers[_signers.length - 1]);
-        nounsToken.delegate(proposer);
+        vm.startPrank(_signers[_signers.length - 1]);
+        uint256 tokenId = dao.nouns().tokenOfOwnerByIndex(_signers[_signers.length - 1], 0);
+        dt.mint(proposer, tokenId);
+        vm.stopPrank();
         vm.roll(block.number + 1);
 
         // propose without signers
-        proposalId = propose(proposer, makeAddr('target'), 0, '', '', '');
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = tokenId;
+        proposalId = propose(proposer, tokenIds, makeAddr('target'), 0, '', '', '', 0);
         vm.roll(block.number + 1);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.SignerCountMismtach.selector));

@@ -11,12 +11,16 @@ import { IProxyRegistry } from '../../../contracts/external/opensea/IProxyRegist
 import { NounsDAOExecutor } from '../../../contracts/governance/NounsDAOExecutor.sol';
 import { INounsTokenForkLike } from '../../../contracts/governance/fork/newdao/governance/INounsTokenForkLike.sol';
 import { Utils } from './Utils.sol';
+import { NounsTokenLike } from '../../../contracts/governance/NounsDAOInterfaces.sol';
+import { DelegationHelpers } from './DelegationHelpers.sol';
 
 interface DAOLogicFork {
     function _setQuorumVotesBPS(uint256 newQuorumVotesBPS) external;
 }
 
 abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
+    using DelegationHelpers for address;
+
     INounsDAOLogic daoProxy;
     NounsToken nounsToken;
     NounsDAOExecutor timelock = new NounsDAOExecutor(address(1), TIMELOCK_DELAY);
@@ -55,13 +59,36 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
     }
 
     function propose(
+        address target,
+        uint256 value,
+        string memory signature,
+        bytes memory data
+    ) internal returns (uint256 proposalId) {
+        return propose(proposer, target, value, signature, data);
+    }
+
+    function propose(
         address _proposer,
         address target,
         uint256 value,
         string memory signature,
         bytes memory data
     ) internal returns (uint256 proposalId) {
-        vm.prank(_proposer);
+        NounsTokenLike nouns = daoProxy.nouns();
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = nouns.tokenOfOwnerByIndex(_proposer, 0);
+
+        return propose(_proposer, tokenIds, target, value, signature, data);
+    }
+
+    function propose(
+        address _proposer,
+        uint256[] memory tokenIds,
+        address target,
+        uint256 value,
+        string memory signature,
+        bytes memory data
+    ) internal returns (uint256 proposalId) {
         address[] memory targets = new address[](1);
         targets[0] = target;
         uint256[] memory values = new uint256[](1);
@@ -70,16 +97,9 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
         signatures[0] = signature;
         bytes[] memory calldatas = new bytes[](1);
         calldatas[0] = data;
-        proposalId = daoProxy.propose(targets, values, signatures, calldatas, 'my proposal');
-    }
 
-    function propose(
-        address target,
-        uint256 value,
-        string memory signature,
-        bytes memory data
-    ) internal returns (uint256 proposalId) {
-        return propose(proposer, target, value, signature, data);
+        vm.prank(_proposer);
+        proposalId = daoProxy.propose(tokenIds, targets, values, signatures, calldatas, 'my proposal');
     }
 
     function mint(address to, uint256 amount) internal {
@@ -101,8 +121,15 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
     }
 
     function vote(address voter, uint256 proposalId, uint8 support) internal {
-        vm.prank(voter);
-        daoProxy.castVote(proposalId, support);
+        vm.startPrank(voter);
+        daoProxy.castRefundableVote(voter.allVotesOf(daoProxy), proposalId, support);
+        vm.stopPrank();
+    }
+
+    function voteWithReason(address voter, uint256 proposalId, uint8 support, string memory reason) internal {
+        vm.startPrank(voter);
+        daoProxy.castRefundableVoteWithReason(voter.allVotesOf(daoProxy), proposalId, support, reason);
+        vm.stopPrank();
     }
 
     function deployForkDAOProxy() internal returns (INounsDAOLogic) {

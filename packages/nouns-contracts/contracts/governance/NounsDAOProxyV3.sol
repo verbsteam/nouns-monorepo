@@ -56,6 +56,7 @@ contract NounsDAOProxyV3 {
     constructor(
         address timelock_,
         address nouns_,
+        address delegationToken_,
         address forkEscrow_,
         address forkDAODeployer_,
         address vetoer_,
@@ -70,9 +71,10 @@ contract NounsDAOProxyV3 {
         delegateTo(
             implementation_,
             abi.encodeWithSignature(
-                'initialize(address,address,address,address,address,(uint256,uint256,uint256,uint32,uint32,uint32),(uint16,uint16,uint32))',
+                'initialize(address,address,address,address,address,address,(uint256,uint256,uint256,uint32,uint32,uint32),(uint16,uint16,uint32))',
                 timelock_,
                 nouns_,
+                delegationToken_,
                 forkEscrow_,
                 forkDAODeployer_,
                 vetoer_,

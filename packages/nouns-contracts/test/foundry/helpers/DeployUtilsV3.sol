@@ -21,6 +21,7 @@ import { NounsAuctionHouseFork } from '../../../contracts/governance/fork/newdao
 import { NounsDAOLogicV1Fork } from '../../../contracts/governance/fork/newdao/governance/NounsDAOLogicV1Fork.sol';
 import { NounsDAOTypes } from '../../../contracts/governance/NounsDAOInterfaces.sol';
 import { INounsDAOLogic } from '../../../contracts/interfaces/INounsDAOLogic.sol';
+import { NounDelegationToken } from '../../../contracts/governance/NounDelegationToken.sol';
 
 abstract contract DeployUtilsV3 is DeployUtils {
     NounsAuctionHouseProxyAdmin auctionHouseProxyAdmin;
@@ -33,12 +34,14 @@ abstract contract DeployUtilsV3 is DeployUtils {
         NounsDAOTypes.DynamicQuorumParams memory dqParams
     ) internal returns (INounsDAOLogic dao) {
         uint256 nonce = vm.getNonce(address(this));
-        address predictedForkEscrowAddress = computeCreateAddress(address(this), nonce + 2);
+        address predictedForkEscrowAddress = computeCreateAddress(address(this), nonce + 3);
+        NounDelegationToken delegationToken = new NounDelegationToken(nounsToken, 'E381CB');
         dao = INounsDAOLogic(
             address(
                 new NounsDAOProxyV3(
                     timelock,
                     nounsToken,
+                    address(delegationToken),
                     predictedForkEscrowAddress,
                     address(0),
                     vetoer,
@@ -80,6 +83,7 @@ abstract contract DeployUtilsV3 is DeployUtils {
     struct Temp {
         NounsDAOExecutorV2 timelock;
         NounsToken nounsToken;
+        NounDelegationToken delegationToken;
     }
 
     function _deployDAOV3WithParams(uint256 auctionDuration) internal returns (INounsDAOLogic) {
@@ -106,7 +110,7 @@ abstract contract DeployUtilsV3 is DeployUtils {
         address daoLogicImplementation = address(new NounsDAOLogicV4());
 
         uint256 nonce = vm.getNonce(address(this));
-        address predictedForkEscrowAddress = computeCreateAddress(address(this), nonce + 6);
+        address predictedForkEscrowAddress = computeCreateAddress(address(this), nonce + 7);
 
         ForkDAODeployer forkDeployer = new ForkDAODeployer(
             address(new NounsTokenFork()),
@@ -120,11 +124,14 @@ abstract contract DeployUtilsV3 is DeployUtils {
             FORK_DAO_QUORUM_VOTES_BPS
         );
 
+        t.delegationToken = new NounDelegationToken(address(t.nounsToken), 'E381CB');
+
         INounsDAOLogic dao = INounsDAOLogic(
             payable(
                 new NounsDAOProxyV3(
                     address(t.timelock),
                     address(t.nounsToken),
+                    address(t.delegationToken),
                     predictedForkEscrowAddress,
                     address(forkDeployer),
                     makeAddr('vetoer'),

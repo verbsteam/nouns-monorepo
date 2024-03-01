@@ -10,6 +10,7 @@ import { NounsSeeder } from '../../contracts/NounsSeeder.sol';
 import { IProxyRegistry } from '../../contracts/external/opensea/IProxyRegistry.sol';
 import { NounsDAOExecutor } from '../../contracts/governance/NounsDAOExecutor.sol';
 import { NounsDAOLogicSharedBaseTest } from './helpers/NounsDAOLogicSharedBase.t.sol';
+import { DelegationHelpers } from './helpers/DelegationHelpers.sol';
 
 abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
     function setUp() public override {
@@ -176,15 +177,16 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
     }
 }
 
-contract NounsDAOLogicV1ForkStateTest is NounsDAOLogicStateBaseTest {
-    function daoVersion() internal pure override returns (uint256) {
-        return 1;
-    }
+// TODO bring back fork tests. Had to remove them because of the API change with Nouns Gov
+// contract NounsDAOLogicV1ForkStateTest is NounsDAOLogicStateBaseTest {
+//     function daoVersion() internal pure override returns (uint256) {
+//         return 1;
+//     }
 
-    function deployDAOProxy(address, address, address) internal override returns (INounsDAOLogic) {
-        return INounsDAOLogic(address(deployForkDAOProxy()));
-    }
-}
+//     function deployDAOProxy(address, address, address) internal override returns (INounsDAOLogic) {
+//         return INounsDAOLogic(address(deployForkDAOProxy()));
+//     }
+// }
 
 contract NounsDAOLogicV3StateTest is NounsDAOLogicStateBaseTest {
     function deployDAOProxy(

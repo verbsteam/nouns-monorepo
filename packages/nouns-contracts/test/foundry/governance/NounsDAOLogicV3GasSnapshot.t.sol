@@ -7,7 +7,7 @@ import { NounsDAOLogicSharedBaseTest } from '../helpers/NounsDAOLogicSharedBase.
 import { INounsDAOLogic } from '../../../contracts/interfaces/INounsDAOLogic.sol';
 import { DeployUtilsV3 } from '../helpers/DeployUtilsV3.sol';
 import { NounsDAOProxyV3 } from '../../../contracts/governance/NounsDAOProxyV3.sol';
-import { NounsDAOTypes } from '../../../contracts/governance/NounsDAOInterfaces.sol';
+import { NounsDAOTypes, NounsTokenLike } from '../../../contracts/governance/NounsDAOInterfaces.sol';
 
 abstract contract NounsDAOLogic_GasSnapshot_propose is NounsDAOLogicSharedBaseTest {
     address immutable target = makeAddr('target');
@@ -23,7 +23,6 @@ abstract contract NounsDAOLogic_GasSnapshot_propose is NounsDAOLogicSharedBaseTe
     }
 
     function test_propose_shortDescription() public {
-        vm.prank(proposer);
         address[] memory targets = new address[](1);
         targets[0] = target;
         uint256[] memory values = new uint256[](1);
@@ -32,11 +31,16 @@ abstract contract NounsDAOLogic_GasSnapshot_propose is NounsDAOLogicSharedBaseTe
         signatures[0] = '';
         bytes[] memory calldatas = new bytes[](1);
         calldatas[0] = '';
-        daoProxy.propose(targets, values, signatures, calldatas, 'short description');
+
+        NounsTokenLike nouns = daoProxy.nouns();
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = nouns.tokenOfOwnerByIndex(proposer, 0);
+
+        vm.prank(proposer);
+        daoProxy.propose(tokenIds, targets, values, signatures, calldatas, 'short description');
     }
 
     function test_propose_longDescription() public {
-        vm.prank(proposer);
         address[] memory targets = new address[](1);
         targets[0] = target;
         uint256[] memory values = new uint256[](1);
@@ -45,7 +49,13 @@ abstract contract NounsDAOLogic_GasSnapshot_propose is NounsDAOLogicSharedBaseTe
         signatures[0] = '';
         bytes[] memory calldatas = new bytes[](1);
         calldatas[0] = '';
-        daoProxy.propose(targets, values, signatures, calldatas, getLongDescription());
+
+        NounsTokenLike nouns = daoProxy.nouns();
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = nouns.tokenOfOwnerByIndex(proposer, 0);
+
+        vm.prank(proposer);
+        daoProxy.propose(tokenIds, targets, values, signatures, calldatas, getLongDescription());
     }
 
     function getLongDescription() internal view returns (string memory) {
@@ -81,24 +91,26 @@ abstract contract NounsDAOLogic_GasSnapshot_castVote is NounsDAOLogicSharedBaseT
         signatures[0] = '';
         bytes[] memory calldatas = new bytes[](1);
         calldatas[0] = '';
+
+        NounsTokenLike nouns = daoProxy.nouns();
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = nouns.tokenOfOwnerByIndex(proposer, 0);
+
         vm.prank(proposer);
-        daoProxy.propose(targets, values, signatures, calldatas, 'short description');
+        daoProxy.propose(tokenIds, targets, values, signatures, calldatas, 'short description');
     }
 
     function test_castVote_against() public {
-        vm.prank(nouner);
-        daoProxy.castVote(1, 0);
+        vote(nouner, 1, 0);
     }
 
     function test_castVoteWithReason() public {
-        vm.prank(nouner);
-        daoProxy.castVoteWithReason(1, 0, "I don't like this proposal");
+        voteWithReason(nouner, 1, 0, "I don't like this proposal");
     }
 
     function test_castVote_lastMinuteFor() public {
         vm.roll(block.number + VOTING_PERIOD - LAST_MINUTE_BLOCKS);
-        vm.prank(nouner);
-        daoProxy.castVote(1, 1);
+        vote(nouner, 1, 1);
     }
 }
 
@@ -122,8 +134,7 @@ abstract contract NounsDAOLogic_GasSnapshot_castVoteDuringObjectionPeriod is Nou
 
         // activate objection period
         vm.roll(block.number + VOTING_PERIOD - LAST_MINUTE_BLOCKS);
-        vm.prank(proposer);
-        daoProxy.castVote(1, 1);
+        vote(proposer, 1, 1);
         // enter objection period
         vm.roll(block.number + LAST_MINUTE_BLOCKS + 1);
     }
@@ -137,13 +148,17 @@ abstract contract NounsDAOLogic_GasSnapshot_castVoteDuringObjectionPeriod is Nou
         signatures[0] = '';
         bytes[] memory calldatas = new bytes[](1);
         calldatas[0] = '';
+
+        NounsTokenLike nouns = daoProxy.nouns();
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = nouns.tokenOfOwnerByIndex(proposer, 0);
+
         vm.prank(proposer);
-        daoProxy.propose(targets, values, signatures, calldatas, 'short description');
+        daoProxy.propose(tokenIds, targets, values, signatures, calldatas, 'short description');
     }
 
     function test_castVote_duringObjectionPeriod_against() public {
-        vm.prank(nouner);
-        daoProxy.castVote(1, 0);
+        vote(nouner, 1, 0);
     }
 }
 

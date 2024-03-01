@@ -3,6 +3,7 @@ pragma solidity ^0.8.15;
 
 import 'forge-std/Test.sol';
 import { NounsDAOLogicBaseTest } from './NounsDAOLogicBaseTest.sol';
+import { NounsTokenLike } from '../../../contracts/governance/NounsDAOInterfaces.sol';
 
 contract ProposeTest is NounsDAOLogicBaseTest {
     address proposer = makeAddr('proposer');
@@ -55,8 +56,13 @@ contract ProposeTest is NounsDAOLogicBaseTest {
             0 // clientId
         );
 
-        vm.prank(proposer);
+        NounsTokenLike nouns = dao.nouns();
+        uint256[] memory tokenIds = new uint256[](10);
+        for (uint i = 0; i < 10; i++) {
+            tokenIds[i] = nouns.tokenOfOwnerByIndex(proposer, i);
+        }
 
-        dao.propose(targets, values, signatures, calldatas, 'some description');
+        vm.prank(proposer);
+        dao.propose(tokenIds, targets, values, signatures, calldatas, 'some description');
     }
 }

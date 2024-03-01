@@ -37,6 +37,8 @@ interface INounsDescriptorV2 is INounsDescriptorMinimal {
     error BadPaletteLength();
     error IndexNotFound();
 
+    function renderer() external view returns (ISVGRenderer);
+
     function arePartsLocked() external returns (bool);
 
     function isDataURIEnabled() external returns (bool);
@@ -71,55 +73,23 @@ interface INounsDescriptorV2 is INounsDescriptorMinimal {
 
     function setPalette(uint8 paletteIndex, bytes calldata palette) external;
 
-    function addBodies(
-        bytes calldata encodedCompressed,
-        uint80 decompressedLength,
-        uint16 imageCount
-    ) external;
+    function addBodies(bytes calldata encodedCompressed, uint80 decompressedLength, uint16 imageCount) external;
 
-    function addAccessories(
-        bytes calldata encodedCompressed,
-        uint80 decompressedLength,
-        uint16 imageCount
-    ) external;
+    function addAccessories(bytes calldata encodedCompressed, uint80 decompressedLength, uint16 imageCount) external;
 
-    function addHeads(
-        bytes calldata encodedCompressed,
-        uint80 decompressedLength,
-        uint16 imageCount
-    ) external;
+    function addHeads(bytes calldata encodedCompressed, uint80 decompressedLength, uint16 imageCount) external;
 
-    function addGlasses(
-        bytes calldata encodedCompressed,
-        uint80 decompressedLength,
-        uint16 imageCount
-    ) external;
+    function addGlasses(bytes calldata encodedCompressed, uint80 decompressedLength, uint16 imageCount) external;
 
     function setPalettePointer(uint8 paletteIndex, address pointer) external;
 
-    function addBodiesFromPointer(
-        address pointer,
-        uint80 decompressedLength,
-        uint16 imageCount
-    ) external;
+    function addBodiesFromPointer(address pointer, uint80 decompressedLength, uint16 imageCount) external;
 
-    function addAccessoriesFromPointer(
-        address pointer,
-        uint80 decompressedLength,
-        uint16 imageCount
-    ) external;
+    function addAccessoriesFromPointer(address pointer, uint80 decompressedLength, uint16 imageCount) external;
 
-    function addHeadsFromPointer(
-        address pointer,
-        uint80 decompressedLength,
-        uint16 imageCount
-    ) external;
+    function addHeadsFromPointer(address pointer, uint80 decompressedLength, uint16 imageCount) external;
 
-    function addGlassesFromPointer(
-        address pointer,
-        uint80 decompressedLength,
-        uint16 imageCount
-    ) external;
+    function addGlassesFromPointer(address pointer, uint80 decompressedLength, uint16 imageCount) external;
 
     function lockParts() external;
 
@@ -138,4 +108,6 @@ interface INounsDescriptorV2 is INounsDescriptorMinimal {
     ) external view returns (string memory);
 
     function generateSVGImage(INounsSeeder.Seed memory seed) external view returns (string memory);
+
+    function getPartsForSeed(INounsSeeder.Seed memory seed) external view returns (ISVGRenderer.Part[] memory);
 }

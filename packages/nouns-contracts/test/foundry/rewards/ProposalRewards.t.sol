@@ -137,16 +137,6 @@ abstract contract BaseProposalRewardsTest is NounsDAOLogicBaseTest {
         vm.roll(block.number + numBlocks);
         vm.warp(block.timestamp + numBlocks * SECONDS_IN_BLOCK);
     }
-
-    function vote(address voter_, uint256 proposalId_, uint8 support, string memory reason) internal {
-        vm.prank(voter_);
-        dao.castRefundableVoteWithReason(proposalId_, support, reason);
-    }
-
-    function vote(address voter_, uint256 proposalId_, uint8 support, string memory reason, uint32 clientId) internal {
-        vm.prank(voter_);
-        dao.castRefundableVoteWithReason(proposalId_, support, reason, clientId);
-    }
 }
 
 contract ProposalRewardsTest is BaseProposalRewardsTest {

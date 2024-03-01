@@ -7,15 +7,18 @@ import { SigUtils, ERC1271Stub } from '../helpers/SigUtils.sol';
 import { ProxyRegistryMock } from '../helpers/ProxyRegistryMock.sol';
 import { NounsDAOProposals } from '../../../contracts/governance/NounsDAOProposals.sol';
 import { NounsDAOProxyV3 } from '../../../contracts/governance/NounsDAOProxyV3.sol';
-import { NounsDAOTypes } from '../../../contracts/governance/NounsDAOInterfaces.sol';
+import { NounsDAOTypes, NounsTokenLike } from '../../../contracts/governance/NounsDAOInterfaces.sol';
 import { NounsToken } from '../../../contracts/NounsToken.sol';
 import { NounsSeeder } from '../../../contracts/NounsSeeder.sol';
 import { IProxyRegistry } from '../../../contracts/external/opensea/IProxyRegistry.sol';
 import { NounsDAOExecutorV2 } from '../../../contracts/governance/NounsDAOExecutorV2.sol';
 import { NounsDAOForkEscrow } from '../../../contracts/governance/fork/NounsDAOForkEscrow.sol';
 import { INounsDAOLogic } from '../../../contracts/interfaces/INounsDAOLogic.sol';
+import { DelegationHelpers } from '../helpers/DelegationHelpers.sol';
 
 abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
+    using DelegationHelpers for address;
+
     event ProposalUpdated(
         uint256 indexed id,
         address indexed proposer,
@@ -85,6 +88,18 @@ abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
         forkEscrow = address(dao.forkEscrow());
     }
 
+    function vote(address voter_, uint256 proposalId_, uint8 support, string memory reason) internal {
+        vm.startPrank(voter_);
+        dao.castRefundableVoteWithReason(voter_.allVotesOf(dao), proposalId_, support, reason);
+        vm.stopPrank();
+    }
+
+    function vote(address voter_, uint256 proposalId_, uint8 support, string memory reason, uint32 clientId) internal {
+        vm.startPrank(voter_);
+        dao.castRefundableVoteWithReason(voter_.allVotesOf(dao), proposalId_, support, reason, clientId);
+        vm.stopPrank();
+    }
+
     function mintTo(address to) internal returns (uint256 tokenID) {
         vm.startPrank(minter);
         tokenID = nounsToken.mint();
@@ -99,19 +114,9 @@ abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
         uint256 value,
         string memory signature,
         bytes memory data,
-        string memory description,
-        uint32 clientId
+        string memory description
     ) internal returns (uint256 proposalId) {
-        vm.prank(proposer);
-        address[] memory targets = new address[](1);
-        targets[0] = target;
-        uint256[] memory values = new uint256[](1);
-        values[0] = value;
-        string[] memory signatures = new string[](1);
-        signatures[0] = signature;
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = data;
-        proposalId = dao.propose(targets, values, signatures, calldatas, description, clientId);
+        return propose(proposer, target, value, signature, data, description, 0);
     }
 
     function propose(
@@ -120,9 +125,26 @@ abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
         uint256 value,
         string memory signature,
         bytes memory data,
-        string memory description
+        string memory description,
+        uint32 clientId
     ) internal returns (uint256 proposalId) {
-        vm.prank(proposer);
+        NounsTokenLike nouns = dao.nouns();
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = nouns.tokenOfOwnerByIndex(proposer, 0);
+
+        return propose(proposer, tokenIds, target, value, signature, data, description, clientId);
+    }
+
+    function propose(
+        address proposer,
+        uint256[] memory tokenIds,
+        address target,
+        uint256 value,
+        string memory signature,
+        bytes memory data,
+        string memory description,
+        uint32 clientId
+    ) internal returns (uint256 proposalId) {
         address[] memory targets = new address[](1);
         targets[0] = target;
         uint256[] memory values = new uint256[](1);
@@ -131,7 +153,9 @@ abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
         signatures[0] = signature;
         bytes[] memory calldatas = new bytes[](1);
         calldatas[0] = data;
-        proposalId = dao.propose(targets, values, signatures, calldatas, description);
+
+        vm.prank(proposer);
+        proposalId = dao.propose(tokenIds, targets, values, signatures, calldatas, description, clientId);
     }
 
     function updateProposal(
