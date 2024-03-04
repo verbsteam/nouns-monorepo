@@ -334,4 +334,9 @@ abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
             0 // clientId
         );
     }
+
+    function toTokenIds(uint256 tokenId) internal pure returns (uint256[] memory tokenIds) {
+        tokenIds = new uint256[](1);
+        tokenIds[0] = tokenId;
+    }
 }

@@ -5,6 +5,7 @@ import 'forge-std/Test.sol';
 import { NounsDAOLogicBaseTest } from './NounsDAOLogicBaseTest.sol';
 import { NounsDAOVotes } from '../../../contracts/governance/NounsDAOVotes.sol';
 import { NounsDAOTypes } from '../../../contracts/governance/NounsDAOInterfaces.sol';
+import { NounDelegationToken } from '../../../contracts/governance/NounDelegationToken.sol';
 
 contract NounsDAOLogicVotesBaseTest is NounsDAOLogicBaseTest {
     address proposer = makeAddr('proposer');
@@ -110,14 +111,16 @@ contract NounsDAOLogicVotesTest is NounsDAOLogicVotesBaseTest {
     }
 }
 
-contract NounsDAOLogicVotes_ActiveState_Test is NounsDAOLogicVotesBaseTest {
-    function setUp() public override {
+abstract contract NounsDAOLogicVotes_ActiveState_Test is NounsDAOLogicVotesBaseTest {
+    function setUp() public virtual override {
         super.setUp();
 
         vm.roll(block.number + dao.proposalUpdatablePeriodInBlocks() + dao.votingDelay() + 1);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Active);
     }
+}
 
+contract NounsDAOLogicVotes_DoubleVoting_Test is NounsDAOLogicVotes_ActiveState_Test {
     function test_givenSameVoterVotingTwiceWithDifferentTokens_works() public {
         uint256[] memory tokenIds = new uint256[](1);
         tokenIds[0] = proposerTokenIds[0];
@@ -148,5 +151,73 @@ contract NounsDAOLogicVotes_ActiveState_Test is NounsDAOLogicVotesBaseTest {
         vm.expectRevert('NounsDAO::castVoteDuringVotingPeriodInternal: token already voted');
         vm.prank(proposer);
         dao.castRefundableVote(proposerTokenIds, proposalId, 1);
+    }
+}
+
+contract NounsDAOLogicVotes_Delegation_Test is NounsDAOLogicVotes_ActiveState_Test {
+    NounDelegationToken delegationToken;
+    address delegate;
+    address hotwallet;
+    uint256 tokenId;
+
+    function setUp() public virtual override {
+        super.setUp();
+
+        delegationToken = NounDelegationToken(dao.delegationToken());
+        delegate = makeAddr('delegate');
+        hotwallet = makeAddr('hotwallet');
+        tokenId = proposerTokenIds[0];
+
+        vm.startPrank(proposer);
+        delegationToken.setHotWallet(hotwallet);
+        delegationToken.mint(delegate, tokenId);
+        vm.stopPrank();
+    }
+
+    function test_delegateTokenOwnerVote_works() public {
+        vm.prank(delegate);
+        dao.castRefundableVote(toTokenIds(tokenId), proposalId, 1);
+
+        (bool hasVoted, uint8 support) = dao.votingReceipt(proposalId, tokenId);
+        assertTrue(hasVoted);
+        assertEq(support, 1);
+    }
+
+    function test_givenDelegateTokenOwnedBySomeone_hotWalletCantVote() public {
+        vm.expectRevert('msg.sender is not the delegate of provided tokenIds');
+        vm.prank(hotwallet);
+        dao.castRefundableVote(toTokenIds(tokenId), proposalId, 1);
+    }
+
+    function test_givenNoDelegateToken_hotWalletVoteWorks() public {
+        vm.startPrank(proposer);
+        delegationToken.burn(tokenId);
+        vm.stopPrank();
+
+        vm.prank(hotwallet);
+        dao.castRefundableVote(toTokenIds(tokenId), proposalId, 1);
+
+        (bool hasVoted, uint8 support) = dao.votingReceipt(proposalId, tokenId);
+        assertTrue(hasVoted);
+        assertEq(support, 1);
+    }
+
+    function test_givenDelegateTokenOwnedBySomeone_nounerCantVote() public {
+        vm.expectRevert('msg.sender is not the delegate of provided tokenIds');
+        vm.prank(proposer);
+        dao.castRefundableVote(toTokenIds(tokenId), proposalId, 1);
+    }
+
+    function test_givenNoDelegateToken_nounerVoteWorks() public {
+        vm.startPrank(proposer);
+        delegationToken.burn(tokenId);
+        vm.stopPrank();
+
+        vm.prank(proposer);
+        dao.castRefundableVote(toTokenIds(tokenId), proposalId, 1);
+
+        (bool hasVoted, uint8 support) = dao.votingReceipt(proposalId, tokenId);
+        assertTrue(hasVoted);
+        assertEq(support, 1);
     }
 }
