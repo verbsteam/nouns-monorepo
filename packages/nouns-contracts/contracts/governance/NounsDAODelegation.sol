@@ -23,18 +23,22 @@ import { NounDelegationToken } from './NounDelegationToken.sol';
 library NounsDAODelegation {
     function isDelegate(address account, uint256[] memory tokenIds) external view returns (bool) {
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            if (delegateOf(tokenIds[i]) != account) {
-                return false;
-            }
+            if (!isDelegate(account, tokenIds[i])) return false;
         }
         return true;
     }
 
-    function delegateOf(uint256 tokenId) public view returns (address) {
+    function isDelegate(address account, uint256 tokenId) public view returns (bool) {
         address delegationOwner = NounDelegationToken(ds().delegationToken).ownerOfNoRevert(tokenId);
-        if (delegationOwner != address(0)) return delegationOwner;
+        if (delegationOwner != address(0)) return delegationOwner == account;
 
-        return ds().nouns.ownerOf(tokenId);
+        address nouner = ds().nouns.ownerOf(tokenId);
+        if (nouner == account) return true;
+
+        address hotWallet = NounDelegationToken(ds().delegationToken).hotWallets(nouner);
+        if (hotWallet != address(0) && hotWallet == account) return true;
+
+        return false;
     }
 
     /***

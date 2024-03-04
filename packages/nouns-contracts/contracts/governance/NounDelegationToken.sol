@@ -24,7 +24,7 @@ contract NounDelegationToken is ERC721Enumerable {
 
     INouns nouns;
     string backgroundColor;
-    mapping(address => address) public delegationAdmins;
+    mapping(address => address) public hotWallets;
 
     constructor(address nouns_, string memory backgroundColor_) ERC721('NounDelegationToken', 'NDT') {
         nouns = INouns(nouns_);
@@ -34,8 +34,8 @@ contract NounDelegationToken is ERC721Enumerable {
     function mint(address to, uint256 tokenId) public {
         address nouner = nouns.ownerOf(tokenId);
         require(
-            nouner == msg.sender || delegationAdmins[nouner] == msg.sender,
-            'NounDelegationToken: Only Noun owner or their delegation admin can mint'
+            nouner == msg.sender || hotWallets[nouner] == msg.sender,
+            'NounDelegationToken: Only Noun owner or their hot wallet can mint'
         );
 
         _safeMint(to, tokenId);
@@ -51,8 +51,8 @@ contract NounDelegationToken is ERC721Enumerable {
         _burn(tokenId);
     }
 
-    function setDelegationAdmin(address delegationAdmin) external {
-        delegationAdmins[msg.sender] = delegationAdmin;
+    function setHotWallet(address hotWallet) external {
+        hotWallets[msg.sender] = hotWallet;
     }
 
     function ownerOfNoRevert(uint256 tokenId) external view returns (address) {
@@ -62,7 +62,7 @@ contract NounDelegationToken is ERC721Enumerable {
 
     function _isApprovedOrOwner(address spender, uint256 tokenId) internal view virtual override returns (bool) {
         address nouner = nouns.ownerOf(tokenId);
-        if (nouner == spender || delegationAdmins[nouner] == spender) return true;
+        if (nouner == spender || hotWallets[nouner] == spender) return true;
 
         return super._isApprovedOrOwner(spender, tokenId);
     }
