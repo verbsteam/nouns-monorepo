@@ -12,6 +12,7 @@ import { NounsDAODataEvents } from '../../contracts/governance/data/NounsDAOData
 import { NounsDAODataProxy } from '../../contracts/governance/data/NounsDAODataProxy.sol';
 import { NounsDAOProposals } from '../../contracts/governance/NounsDAOProposals.sol';
 import { SigUtils } from './helpers/SigUtils.sol';
+import { DelegationHelpers } from './helpers/DelegationHelpers.sol';
 
 abstract contract NounsDAODataBaseTest is DeployUtilsV3, SigUtils, NounsDAODataEvents, AuctionHelpers {
     NounsDAODataProxy proxy;
@@ -869,6 +870,8 @@ contract NounsDAOData_AdminFunctionsTest is NounsDAODataBaseTest {
 }
 
 contract NounsDAOData_CreateCandidateToUpdateProposalTest is NounsDAODataBaseTest {
+    using DelegationHelpers for address;
+
     address signer;
     uint256 signerPK;
     uint256 proposalId;
@@ -1029,11 +1032,21 @@ contract NounsDAOData_CreateCandidateToUpdateProposalTest is NounsDAODataBaseTes
             sigs[i] = NounsDAOTypes.ProposerSignature(
                 signProposal(proposer, signerPKs[i], txs, description, expirationTimestamps[i], address(nounsDao)),
                 signers[i],
-                expirationTimestamps[i]
+                expirationTimestamps[i],
+                signers[i].allVotesOf(nounsDao)
             );
         }
 
-        vm.prank(proposer);
-        proposalId_ = nounsDao.proposeBySigs(sigs, txs.targets, txs.values, txs.signatures, txs.calldatas, description);
+        vm.startPrank(proposer);
+        proposalId_ = nounsDao.proposeBySigs(
+            proposer.allVotesOf(nounsDao),
+            sigs,
+            txs.targets,
+            txs.values,
+            txs.signatures,
+            txs.calldatas,
+            description
+        );
+        vm.stopPrank();
     }
 }

@@ -14,11 +14,15 @@ import { NounsSeeder } from '../../../contracts/NounsSeeder.sol';
 import { IProxyRegistry } from '../../../contracts/external/opensea/IProxyRegistry.sol';
 import { NounsDAOExecutor } from '../../../contracts/governance/NounsDAOExecutor.sol';
 import { NounDelegationToken } from '../../../contracts/governance/NounDelegationToken.sol';
+import { LibSort } from '../lib/LibSort.sol';
+import { DelegationHelpers } from '../helpers/DelegationHelpers.sol';
 
 contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
+    using DelegationHelpers for address;
+
     address proposer = makeAddr('proposerWithVote');
     address[] _signers;
-    uint256[] _signerPKs;
+    mapping(address => uint256) _signerPKs;
     uint256[] signer0TokenIds;
 
     uint256 defaultExpirationTimestamp;
@@ -32,15 +36,18 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         for (uint256 i = 0; i < 8; ++i) {
             (address signer, uint256 signerPK) = makeAddrAndKey(string.concat('signerWithVote', Strings.toString(i)));
             _signers.push(signer);
-            _signerPKs.push(signerPK);
+            _signerPKs[signer] = signerPK;
 
             nounsToken.mint();
             nounsToken.transferFrom(minter, signer, i + 1);
-
-            if (i == 0) {
-                signer0TokenIds.push(i + 1);
-            }
         }
+
+        // Sort signers for proposeBySigs requirement
+        address[] memory signersToSort = _signers;
+        LibSort.insertionSort(signersToSort);
+        _signers = signersToSort;
+
+        signer0TokenIds.push(nounsToken.tokenOfOwnerByIndex(_signers[0], 0));
 
         vm.roll(block.number + 1);
         vm.stopPrank();
@@ -48,7 +55,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         proposalId = proposeBySigs(
@@ -83,13 +91,15 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
         NounsDAOTypes.ProposerSignature[] memory sigs = makeUpdateProposalSigs(
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -103,13 +113,15 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = fewerSignersPKsExpirations();
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
         NounsDAOTypes.ProposerSignature[] memory sigs = makeUpdateProposalSigs(
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -123,13 +135,15 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = moreSignersPKsExpirations();
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
         NounsDAOTypes.ProposerSignature[] memory sigs = makeUpdateProposalSigs(
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -143,18 +157,20 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         // Swap a signer
         signers[1] = _signers[_signers.length - 1];
-        signerPKs[1] = _signerPKs[_signers.length - 1];
+        signerPKs[1] = _signerPKs[signers[1]];
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
         NounsDAOTypes.ProposerSignature[] memory sigs = makeUpdateProposalSigs(
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -168,7 +184,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
@@ -176,6 +193,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -192,7 +210,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         expirationTimestamps[1] = block.timestamp - 1;
@@ -202,6 +221,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -215,7 +235,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
@@ -223,6 +244,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, 'different description'),
             address(dao)
         );
@@ -236,7 +258,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
@@ -250,6 +273,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -265,7 +289,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
@@ -279,6 +304,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -294,7 +320,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
@@ -308,6 +335,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -323,7 +351,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
@@ -337,6 +366,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -352,7 +382,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
@@ -360,6 +391,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -375,7 +407,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
@@ -383,6 +416,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -398,7 +432,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
@@ -406,6 +441,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao),
             'different domain name'
@@ -420,7 +456,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
@@ -428,6 +465,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             makeAddr('other verifying contract')
         );
@@ -442,7 +480,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
@@ -450,6 +489,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -466,7 +506,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
@@ -474,6 +515,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -486,7 +528,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         address[] memory targets = new address[](0);
@@ -503,6 +546,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -515,7 +559,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         address[] memory targets = new address[](11);
@@ -538,6 +583,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -550,7 +596,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
 
         address[] memory targets = new address[](1);
@@ -568,6 +615,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -580,13 +628,15 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
         NounsDAOTypes.ProposerSignature[] memory sigs = makeUpdateProposalSigs(
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -631,13 +681,15 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
         NounsDAOTypes.ProposerSignature[] memory sigs = makeUpdateProposalSigs(
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -654,13 +706,15 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
         NounsDAOTypes.ProposerSignature[] memory sigs = makeUpdateProposalSigs(
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -676,13 +730,15 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
         NounsDAOTypes.ProposerSignature[] memory sigs = makeUpdateProposalSigs(
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -705,13 +761,15 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
         NounsDAOTypes.ProposerSignature[] memory sigs = makeUpdateProposalSigs(
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -728,13 +786,15 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
         NounsDAOTypes.ProposerSignature[] memory sigs = makeUpdateProposalSigs(
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -759,13 +819,15 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 0, '', '');
         NounsDAOTypes.ProposerSignature[] memory sigs = makeUpdateProposalSigs(
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, ''),
             address(dao)
         );
@@ -782,9 +844,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         vm.roll(block.number + 1);
 
         // propose without signers
-        uint256[] memory tokenIds = new uint256[](1);
-        tokenIds[0] = tokenId;
-        proposalId = propose(proposer, tokenIds, makeAddr('target'), 0, '', '', '', 0);
+        proposalId = propose(proposer, proposer.allVotesOf(dao), makeAddr('target'), 0, '', '', '', 0);
         vm.roll(block.number + 1);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.SignerCountMismtach.selector));
@@ -796,13 +856,15 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         (
             address[] memory signers,
             uint256[] memory signerPKs,
-            uint256[] memory expirationTimestamps
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
         ) = signersPKsExpirations();
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('new target'), 1, 'new signature', 'new calldata');
         NounsDAOTypes.ProposerSignature[] memory sigs = makeUpdateProposalSigs(
             signers,
             signerPKs,
             expirationTimestamps,
+            tokenIds,
             UpdateProposalParams(proposalId, proposer, txs, 'descriptionAfter'),
             address(dao)
         );
@@ -859,23 +921,35 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
     )
         internal
         view
-        returns (address[] memory signers, uint256[] memory signerPKs, uint256[] memory expirationTimestamps)
+        returns (
+            address[] memory signers,
+            uint256[] memory signerPKs,
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
+        )
     {
         signers = new address[](len);
         signerPKs = new uint256[](len);
         expirationTimestamps = new uint256[](len);
+        tokenIds = new uint256[][](len);
 
         for (uint256 i = 0; i < len; ++i) {
             signers[i] = _signers[i];
-            signerPKs[i] = _signerPKs[i];
+            signerPKs[i] = _signerPKs[signers[i]];
             expirationTimestamps[i] = defaultExpirationTimestamp;
+            tokenIds[i] = signers[i].allVotesOf(dao);
         }
     }
 
     function signersPKsExpirations()
         internal
         view
-        returns (address[] memory signers, uint256[] memory signerPKs, uint256[] memory expirationTimestamps)
+        returns (
+            address[] memory signers,
+            uint256[] memory signerPKs,
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
+        )
     {
         return signersPKsExpirations(2);
     }
@@ -883,7 +957,12 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
     function fewerSignersPKsExpirations()
         internal
         view
-        returns (address[] memory signers, uint256[] memory signerPKs, uint256[] memory expirationTimestamps)
+        returns (
+            address[] memory signers,
+            uint256[] memory signerPKs,
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
+        )
     {
         return signersPKsExpirations(1);
     }
@@ -891,7 +970,12 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
     function moreSignersPKsExpirations()
         internal
         view
-        returns (address[] memory signers, uint256[] memory signerPKs, uint256[] memory expirationTimestamps)
+        returns (
+            address[] memory signers,
+            uint256[] memory signerPKs,
+            uint256[] memory expirationTimestamps,
+            uint256[][] memory tokenIds
+        )
     {
         return signersPKsExpirations(3);
     }

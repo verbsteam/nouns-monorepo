@@ -5,8 +5,11 @@ import 'forge-std/Test.sol';
 import { NounsDAOLogicBaseTest } from './NounsDAOLogicBaseTest.sol';
 import { NounsDAOTypes } from '../../../contracts/governance/NounsDAOInterfaces.sol';
 import { NounsDAOProposals } from '../../../contracts/governance/NounsDAOProposals.sol';
+import { DelegationHelpers } from '../helpers/DelegationHelpers.sol';
 
 abstract contract ZeroState is NounsDAOLogicBaseTest {
+    using DelegationHelpers for address;
+
     address proposer = makeAddr('proposer');
     address rando = makeAddr('rando');
     address otherUser = makeAddr('otherUser');
@@ -20,6 +23,8 @@ abstract contract ZeroState is NounsDAOLogicBaseTest {
 }
 
 abstract contract ProposalUpdatableState is ZeroState {
+    using DelegationHelpers for address;
+
     function setUp() public virtual override {
         super.setUp();
 
@@ -38,11 +43,13 @@ abstract contract ProposalUpdatableState is ZeroState {
         proposerSignatures[0] = NounsDAOTypes.ProposerSignature(
             signProposal(proposer, signerWithVotePK, txs, 'description', expirationTimestamp, address(dao)),
             signerWithVote,
-            expirationTimestamp
+            expirationTimestamp,
+            signerWithVote.allVotesOf(dao)
         );
 
-        vm.prank(proposer);
+        vm.startPrank(proposer);
         proposalId = dao.proposeBySigs(
+            proposer.allVotesOf(dao),
             proposerSignatures,
             txs.targets,
             txs.values,
@@ -50,6 +57,7 @@ abstract contract ProposalUpdatableState is ZeroState {
             txs.calldatas,
             'description'
         );
+        vm.stopPrank();
 
         vm.roll(block.number + 1);
 

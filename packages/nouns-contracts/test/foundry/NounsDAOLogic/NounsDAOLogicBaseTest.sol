@@ -244,12 +244,22 @@ abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
             sigs[i] = NounsDAOTypes.ProposerSignature(
                 signProposal(proposer, signerPKs[i], txs, description, expirationTimestamps[i], address(dao)),
                 signers[i],
-                expirationTimestamps[i]
+                expirationTimestamps[i],
+                signers[i].allVotesOf(dao)
             );
         }
 
-        vm.prank(proposer);
-        proposalId = dao.proposeBySigs(sigs, txs.targets, txs.values, txs.signatures, txs.calldatas, description);
+        vm.startPrank(proposer);
+        proposalId = dao.proposeBySigs(
+            proposer.allVotesOf(dao),
+            sigs,
+            txs.targets,
+            txs.values,
+            txs.signatures,
+            txs.calldatas,
+            description
+        );
+        vm.stopPrank();
     }
 
     function updateProposalBySigs(
@@ -266,7 +276,8 @@ abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
             sigs[i] = NounsDAOTypes.ProposerSignature(
                 signProposal(proposer, signerPKs[i], txs, description, expirationTimestamps[i], address(dao)),
                 signers[i],
-                expirationTimestamps[i]
+                expirationTimestamps[i],
+                signers[i].allVotesOf(dao)
             );
         }
 

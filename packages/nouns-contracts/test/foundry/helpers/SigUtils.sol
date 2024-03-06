@@ -33,6 +33,7 @@ contract SigUtils is Test {
         address[] memory signers,
         uint256[] memory signerPKs,
         uint256[] memory expirationTimestamps,
+        uint256[][] memory tokenIds,
         UpdateProposalParams memory proposalParams,
         address verifyingContract
     ) internal view returns (NounsDAOTypes.ProposerSignature[] memory sigs) {
@@ -41,6 +42,7 @@ contract SigUtils is Test {
                 signers,
                 signerPKs,
                 expirationTimestamps,
+                tokenIds,
                 proposalParams,
                 verifyingContract,
                 'Nouns DAO'
@@ -51,6 +53,7 @@ contract SigUtils is Test {
         address[] memory signers,
         uint256[] memory signerPKs,
         uint256[] memory expirationTimestamps,
+        uint256[][] memory tokenIds,
         UpdateProposalParams memory proposalParams,
         address verifyingContract,
         string memory domainName
@@ -69,7 +72,8 @@ contract SigUtils is Test {
                     domainName
                 ),
                 signers[i],
-                expirationTimestamps[i]
+                expirationTimestamps[i],
+                tokenIds[i]
             );
         }
     }

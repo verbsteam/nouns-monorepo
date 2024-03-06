@@ -74,6 +74,7 @@ interface INounsDAOLogic {
     ) external returns (uint256);
 
     function proposeBySigs(
+        uint256[] calldata tokenIds,
         NounsDAOTypes.ProposerSignature[] memory proposerSignatures,
         address[] memory targets,
         uint256[] memory values,
@@ -96,6 +97,7 @@ interface INounsDAOLogic {
      * @return uint256 Proposal id of new proposal
      */
     function proposeBySigs(
+        uint256[] calldata tokenIds,
         NounsDAOTypes.ProposerSignature[] memory proposerSignatures,
         address[] memory targets,
         uint256[] memory values,

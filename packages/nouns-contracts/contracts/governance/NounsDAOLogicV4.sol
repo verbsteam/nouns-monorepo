@@ -299,6 +299,7 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * @return uint256 Proposal id of new proposal
      */
     function proposeBySigs(
+        uint256[] calldata tokenIds,
         ProposerSignature[] memory proposerSignatures,
         address[] memory targets,
         uint256[] memory values,
@@ -306,7 +307,7 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
         bytes[] memory calldatas,
         string memory description
     ) external returns (uint256) {
-        return proposeBySigs(proposerSignatures, targets, values, signatures, calldatas, description, 0);
+        return proposeBySigs(tokenIds, proposerSignatures, targets, values, signatures, calldatas, description, 0);
     }
 
     /**
@@ -323,6 +324,7 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * @return uint256 Proposal id of new proposal
      */
     function proposeBySigs(
+        uint256[] calldata tokenIds,
         ProposerSignature[] memory proposerSignatures,
         address[] memory targets,
         uint256[] memory values,
@@ -333,6 +335,7 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
     ) public returns (uint256) {
         return
             ds.proposeBySigs(
+                tokenIds,
                 proposerSignatures,
                 NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas),
                 description,
