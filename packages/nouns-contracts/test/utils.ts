@@ -24,6 +24,7 @@ import {
   INounsDAOLogic,
   NounDelegationToken__factory,
   NounsDAOVotes__factory,
+  NounsDAOProposals__factory,
 } from '../typechain';
 import ImageData from '../files/image-data-v1.json';
 import ImageDataV2 from '../files/image-data-v2.json';
@@ -372,9 +373,13 @@ export const deployGovernorV3 = async (deployer: SignerWithAddress): Promise<Nou
     deployer,
   ).deploy();
 
-  const NounsDAOProposals = await (
-    await ethers.getContractFactory('NounsDAOProposals', deployer)
+  const NounsDAOProposals = await new NounsDAOProposals__factory(
+    {
+      'contracts/governance/NounsDAODelegation.sol:NounsDAODelegation': NounsDAODelegation.address,
+    },
+    deployer,
   ).deploy();
+
   const NounsDAOAdmin = await (await ethers.getContractFactory('NounsDAOAdmin', deployer)).deploy();
   const NounsDAOFork = await (await ethers.getContractFactory('NounsDAOFork', deployer)).deploy();
   const NounsDAODynamicQuorum = await (
