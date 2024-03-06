@@ -537,21 +537,12 @@ library NounsDAOProposals {
         }
 
         NounsDAOTypes.Proposal storage proposal = ds._proposals[proposalId];
-        address proposer = proposal.proposer;
-        NounsTokenLike nouns = ds.nouns;
-
-        uint256 votes = nouns.getPriorVotes(proposer, block.number - 1);
-        bool msgSenderIsProposer = proposer == msg.sender;
+        bool msgSenderIsProposerOrSigner = proposal.proposer == msg.sender;
         address[] memory signers = proposal.signers;
         for (uint256 i = 0; i < signers.length; ++i) {
-            msgSenderIsProposer = msgSenderIsProposer || msg.sender == signers[i];
-            votes += nouns.getPriorVotes(signers[i], block.number - 1);
+            msgSenderIsProposerOrSigner = msgSenderIsProposerOrSigner || msg.sender == signers[i];
         }
-
-        require(
-            msgSenderIsProposer || votes <= proposal.proposalThreshold,
-            'NounsDAO::cancel: proposer above threshold'
-        );
+        require(msgSenderIsProposerOrSigner, 'NounsDAO::cancel: only proposer or signers can cancel');
 
         proposal.canceled = true;
         INounsDAOExecutor timelock = getProposalTimelock(ds, proposal);
