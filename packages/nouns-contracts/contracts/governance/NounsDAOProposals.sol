@@ -191,8 +191,6 @@ library NounsDAOProposals {
             clientId
         );
 
-        // important that the proposal is created before the verification call in order to ensure
-        // the same signer is not trying to sign this proposal more than once
         (temp.votes, temp.signers) = verifySignersCanBackThisProposalAndCountTheirVotes(
             ds,
             tokenIds,
