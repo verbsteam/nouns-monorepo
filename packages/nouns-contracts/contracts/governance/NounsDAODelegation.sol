@@ -31,8 +31,15 @@ library NounsDAODelegation {
     }
 
     function delegateOf(uint256 tokenId) public view returns (address) {
-        address delegationOwner = NounDelegationToken(ds().delegationToken).ownerOfNoRevert(tokenId);
-        if (delegationOwner != address(0)) return delegationOwner;
+        NounDelegationToken dt = NounDelegationToken(ds().delegationToken);
+        address delegationOwner = dt.ownerOfNoRevert(tokenId);
+        if (delegationOwner != address(0)) {
+            require(
+                dt.lastTransferTimestamp(delegationOwner) < block.timestamp,
+                'cannot use voting power updated in the current block'
+            );
+            return delegationOwner;
+        }
 
         NounsTokenLike nouns = ds().nouns;
         address nouner = nouns.ownerOf(tokenId);

@@ -5,6 +5,7 @@ import 'forge-std/Test.sol';
 import { NounsDAOLogicBaseTest } from './NounsDAOLogicBaseTest.sol';
 import { NounsDAOVotes } from '../../../contracts/governance/NounsDAOVotes.sol';
 import { NounsDAOTypes } from '../../../contracts/governance/NounsDAOInterfaces.sol';
+import { NounDelegationToken } from '../../../contracts/governance/NounDelegationToken.sol';
 
 contract NounsDAOLogicVotesBaseTest is NounsDAOLogicBaseTest {
     address proposer = makeAddr('proposer');
@@ -162,6 +163,21 @@ contract NounsDAOLogicVotes_ActiveState_Test is NounsDAOLogicVotesBaseTest {
 
         vm.expectRevert('cannot use voting power updated in the current block');
         vm.prank(proposer);
+        dao.castRefundableVote(tokenIds, proposalId, 1);
+    }
+
+    function test_givenDelegationTokenTransferAtCurrentBlock_reverts() public {
+        NounDelegationToken dt = NounDelegationToken(dao.delegationToken());
+        address delegate = makeAddr('delegate');
+        uint256 tokenId = proposerTokenIds[0];
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = tokenId;
+
+        vm.prank(proposer);
+        dt.mint(delegate, tokenId);
+
+        vm.expectRevert('cannot use voting power updated in the current block');
+        vm.prank(delegate);
         dao.castRefundableVote(tokenIds, proposalId, 1);
     }
 }

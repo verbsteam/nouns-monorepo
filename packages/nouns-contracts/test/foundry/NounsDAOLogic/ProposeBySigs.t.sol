@@ -757,6 +757,8 @@ contract ProposeBySigsTest is NounsDAOLogicBaseTest {
         dt.mintBatch(address(erc1271), signerWithVote1.allVotesOf(dao));
         vm.stopPrank();
         vm.roll(block.number + 1);
+        // important to avoid hitting the flashloan protection revert
+        vm.warp(block.timestamp + 1);
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('target'), 0, '', '');
         uint256 expirationTimestamp = block.timestamp + 1234;

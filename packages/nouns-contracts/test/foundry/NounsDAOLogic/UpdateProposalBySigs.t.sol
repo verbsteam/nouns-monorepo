@@ -842,6 +842,8 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         dt.mint(proposer, tokenId);
         vm.stopPrank();
         vm.roll(block.number + 1);
+        // important to avoid hitting the flashloan protection revert
+        vm.warp(block.timestamp + 1);
 
         // propose without signers
         proposalId = propose(proposer, proposer.allVotesOf(dao), makeAddr('target'), 0, '', '', '', 0);

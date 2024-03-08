@@ -25,6 +25,7 @@ contract NounDelegationToken is ERC721Enumerable {
     INouns nouns;
     string backgroundColor;
     mapping(address => address) public delegationAdmins;
+    mapping(address => uint256) public lastTransferTimestamp;
 
     constructor(address nouns_, string memory backgroundColor_) ERC721('NounDelegationToken', 'NDT') {
         nouns = INouns(nouns_);
@@ -65,6 +66,12 @@ contract NounDelegationToken is ERC721Enumerable {
         if (nouner == spender || delegationAdmins[nouner] == spender) return true;
 
         return super._isApprovedOrOwner(spender, tokenId);
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal virtual override {
+        super._beforeTokenTransfer(from, to, tokenId);
+
+        lastTransferTimestamp[to] = block.timestamp;
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
