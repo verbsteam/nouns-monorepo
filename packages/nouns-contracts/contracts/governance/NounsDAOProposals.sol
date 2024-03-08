@@ -538,9 +538,14 @@ library NounsDAOProposals {
 
         NounsDAOTypes.Proposal storage proposal = ds._proposals[proposalId];
         bool msgSenderIsProposerOrSigner = proposal.proposer == msg.sender;
-        address[] memory signers = proposal.signers;
-        for (uint256 i = 0; i < signers.length; ++i) {
-            msgSenderIsProposerOrSigner = msgSenderIsProposerOrSigner || msg.sender == signers[i];
+        if (!msgSenderIsProposerOrSigner) {
+            address[] storage signers = proposal.signers;
+            for (uint256 i = 0; i < signers.length; ++i) {
+                if (msg.sender == signers[i]) {
+                    msgSenderIsProposerOrSigner = true;
+                    break;
+                }
+            }
         }
         require(msgSenderIsProposerOrSigner, 'NounsDAO::cancel: only proposer or signers can cancel');
 
