@@ -181,6 +181,7 @@ library NounsDAOProposals {
         temp.propThreshold = proposalThreshold(ds, temp.adjustedTotalSupply);
 
         require(signersAndProposerAreUnique(proposerSignatures), 'signers and proposer have duplicates');
+        require(tokensAreUnique(tokenIds), 'tokenIds are not unique');
 
         NounsDAOTypes.Proposal storage newProposal = createNewProposal(
             ds,
@@ -198,6 +199,14 @@ library NounsDAOProposals {
             txs,
             description
         );
+        if (tokenIds.length > 0) {
+            require(
+                NounsDAODelegation.isDelegate(msg.sender, tokenIds),
+                'msg.sender is not the delegate of provided tokenIds'
+            );
+            temp.votes += tokenIds.length;
+        }
+
         if (temp.signers.length == 0) revert MustProvideSignatures();
         if (temp.votes <= temp.propThreshold) revert VotesBelowProposalThreshold();
 
@@ -811,13 +820,6 @@ library NounsDAOProposals {
                 mstore(signers, numSigners)
             }
         }
-
-        require(tokensAreUnique(tokenIds), 'tokenIds are not unique');
-        require(
-            NounsDAODelegation.isDelegate(msg.sender, tokenIds),
-            'msg.sender is not the delegate of provided tokenIds'
-        );
-        votes += tokenIds.length;
     }
 
     function calcProposalEncodeData(
