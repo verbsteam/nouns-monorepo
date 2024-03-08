@@ -61,4 +61,16 @@ contract NounsTokenLikeMock is NounsTokenLike {
     function tokenOfOwnerByIndex(address, uint256) public view virtual override returns (uint256) {
         return 0;
     }
+
+    function delegates(address delegator) external view returns (address) {
+        return address(0);
+    }
+
+    function numCheckpoints(address account) external view returns (uint32) {
+        return 0;
+    }
+
+    function checkpoints(address account, uint32 checkpoint) external view returns (uint32, uint96) {
+        return (0, 0);
+    }
 }

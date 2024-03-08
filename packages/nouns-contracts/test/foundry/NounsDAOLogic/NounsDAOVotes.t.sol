@@ -149,4 +149,19 @@ contract NounsDAOLogicVotes_ActiveState_Test is NounsDAOLogicVotesBaseTest {
         vm.prank(proposer);
         dao.castRefundableVote(proposerTokenIds, proposalId, 1);
     }
+
+    function test_givenTokenTransferAtCurrentBlock_reverts() public {
+        // Minting without advancing the block in order to hit flashloan protection
+        vm.startPrank(minter);
+        uint256 tokenId = nounsToken.mint();
+        nounsToken.transferFrom(minter, proposer, tokenId);
+        vm.stopPrank();
+
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = tokenId;
+
+        vm.expectRevert('cannot use voting power updated in the current block');
+        vm.prank(proposer);
+        dao.castRefundableVote(tokenIds, proposalId, 1);
+    }
 }

@@ -34,7 +34,13 @@ library NounsDAODelegation {
         address delegationOwner = NounDelegationToken(ds().delegationToken).ownerOfNoRevert(tokenId);
         if (delegationOwner != address(0)) return delegationOwner;
 
-        return ds().nouns.ownerOf(tokenId);
+        NounsTokenLike nouns = ds().nouns;
+        address nouner = nouns.ownerOf(tokenId);
+        address nounsTokenDelegate = nouns.delegates(nouner);
+        (uint32 fromBlock, ) = nouns.checkpoints(nounsTokenDelegate, nouns.numCheckpoints(nounsTokenDelegate) - 1);
+        require(fromBlock < block.number, 'cannot use voting power updated in the current block');
+
+        return nouner;
     }
 
     /***

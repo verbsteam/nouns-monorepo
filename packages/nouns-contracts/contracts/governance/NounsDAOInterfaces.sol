@@ -309,6 +309,12 @@ interface NounsTokenLike {
     function setApprovalForAll(address operator, bool approved) external;
 
     function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256);
+
+    function delegates(address delegator) external view returns (address);
+
+    function numCheckpoints(address account) external view returns (uint32);
+
+    function checkpoints(address account, uint32 checkpoint) external view returns (uint32, uint96);
 }
 
 interface IForkDAODeployer {
