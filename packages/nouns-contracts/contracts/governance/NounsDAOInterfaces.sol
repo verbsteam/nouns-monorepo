@@ -416,7 +416,6 @@ interface NounsDAOTypes {
         /// @notice Address of the original timelock
         INounsDAOExecutor timelockV1;
         address delegationToken;
-        mapping(uint256 tokenId => uint256 proposalId) latestProposalIdsByTokenId;
         mapping(uint256 proposalId => BitMaps.BitMap) votingReceipts;
     }
 
@@ -505,6 +504,9 @@ interface NounsDAOTypes {
         address signer;
         /// @notice The timestamp until which the signature is valid
         uint256 expirationTimestamp;
+        /// @notice The token IDs signer is using to back the proposal
+        /// @dev Must be sorted ascending with no duplicates
+        uint256[] tokenIds;
     }
 
     /// @notice A subset of Proposal data, used for client rewards calculation

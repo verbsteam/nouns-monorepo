@@ -38,7 +38,7 @@ contract NounDelegationToken is ERC721Enumerable {
             'NounDelegationToken: Only Noun owner or their delegation admin can mint'
         );
 
-        _safeMint(to, tokenId);
+        _mint(to, tokenId);
     }
 
     function mintBatch(address to, uint256[] calldata tokenIds) external {

@@ -26,16 +26,7 @@ abstract contract ZeroState is NounsDAOLogicBaseTest {
     }
 
     function verifyRandoCantCancel() internal {
-        vm.expectRevert(bytes('NounsDAO::cancel: proposer above threshold'));
-        vm.prank(rando);
-        dao.cancel(proposalId);
-    }
-
-    function verifyRandoCanCancelIfProposerLosesVotingPower() internal {
-        vm.prank(proposer);
-        nounsToken.delegate(otherUser);
-        vm.roll(block.number + 1);
-
+        vm.expectRevert(bytes('NounsDAO::cancel: only proposer or signers can cancel'));
         vm.prank(rando);
         dao.cancel(proposalId);
     }
@@ -68,10 +59,6 @@ abstract contract IsCancellable is ZeroState {
 
     function test_randoCantCancel() public {
         verifyRandoCantCancel();
-    }
-
-    function test_randoCanCancelIfProposerLosesVotingPower() public {
-        verifyRandoCanCancelIfProposerLosesVotingPower();
     }
 }
 

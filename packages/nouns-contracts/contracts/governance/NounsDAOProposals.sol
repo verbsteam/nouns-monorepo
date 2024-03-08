@@ -33,7 +33,6 @@ library NounsDAOProposals {
     error ProposalInfoArityMismatch();
     error MustProvideActions();
     error TooManyActions();
-    error ProposerAlreadyHasALiveProposal();
     error InvalidSignature();
     error SignatureExpired();
     error CanOnlyEditUpdatableProposals();
@@ -87,6 +86,7 @@ library NounsDAOProposals {
         uint32 clientId
     ) internal returns (uint256) {
         checkProposalTxs(txs);
+        require(tokensAreUnique(tokenIds), 'tokenIds are not unique');
 
         uint256 adjustedTotalSupply = ds.adjustedTotalSupply();
         uint256 proposalThreshold_ = proposalThreshold(ds, adjustedTotalSupply);
@@ -96,7 +96,6 @@ library NounsDAOProposals {
             NounsDAODelegation.isDelegate(msg.sender, tokenIds),
             'msg.sender is not the delegate of provided tokenIds'
         );
-        require(tokensDontHaveActiveProposals(ds, tokenIds));
 
         ds.proposalCount = ds.proposalCount + 1;
         uint32 proposalId = SafeCast.toUint32(ds.proposalCount);
@@ -108,12 +107,6 @@ library NounsDAOProposals {
             txs,
             clientId
         );
-        ds.latestProposalIds[msg.sender] = proposalId;
-
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            // TODO: potential gas expensive
-            ds.latestProposalIdsByTokenId[tokenIds[i]] = newProposal.id;
-        }
 
         emitNewPropEvents(
             newProposal,
@@ -157,6 +150,8 @@ library NounsDAOProposals {
         uint32 proposalId;
         uint256 adjustedTotalSupply;
         uint256 propThreshold;
+        uint256 votes;
+        address[] signers;
     }
 
     /**
@@ -170,6 +165,7 @@ library NounsDAOProposals {
      */
     function proposeBySigs(
         NounsDAOTypes.Storage storage ds,
+        uint256[] calldata tokenIds,
         NounsDAOTypes.ProposerSignature[] memory proposerSignatures,
         ProposalTxs memory txs,
         string memory description,
@@ -184,6 +180,9 @@ library NounsDAOProposals {
         temp.adjustedTotalSupply = NounsDAOFork.adjustedTotalSupply(ds);
         temp.propThreshold = proposalThreshold(ds, temp.adjustedTotalSupply);
 
+        require(signersAndProposerAreUnique(proposerSignatures), 'signers and proposer have duplicates');
+        require(tokensAreUnique(tokenIds), 'tokenIds are not unique');
+
         NounsDAOTypes.Proposal storage newProposal = createNewProposal(
             ds,
             temp.proposalId,
@@ -193,23 +192,29 @@ library NounsDAOProposals {
             clientId
         );
 
-        // important that the proposal is created before the verification call in order to ensure
-        // the same signer is not trying to sign this proposal more than once
-        (uint256 votes, address[] memory signers) = verifySignersCanBackThisProposalAndCountTheirVotes(
+        (temp.votes, temp.signers) = verifySignersCanBackThisProposalAndCountTheirVotes(
             ds,
+            tokenIds,
             proposerSignatures,
             txs,
-            description,
-            temp.proposalId
+            description
         );
-        if (signers.length == 0) revert MustProvideSignatures();
-        if (votes <= temp.propThreshold) revert VotesBelowProposalThreshold();
+        if (tokenIds.length > 0) {
+            require(
+                NounsDAODelegation.isDelegate(msg.sender, tokenIds),
+                'msg.sender is not the delegate of provided tokenIds'
+            );
+            temp.votes += tokenIds.length;
+        }
 
-        newProposal.signers = signers;
+        if (temp.signers.length == 0) revert MustProvideSignatures();
+        if (temp.votes <= temp.propThreshold) revert VotesBelowProposalThreshold();
+
+        newProposal.signers = temp.signers;
 
         emitNewPropEvents(
             newProposal,
-            signers,
+            temp.signers,
             ds.minQuorumVotes(temp.adjustedTotalSupply),
             txs,
             description,
@@ -539,21 +544,17 @@ library NounsDAOProposals {
         }
 
         NounsDAOTypes.Proposal storage proposal = ds._proposals[proposalId];
-        address proposer = proposal.proposer;
-        NounsTokenLike nouns = ds.nouns;
-
-        uint256 votes = nouns.getPriorVotes(proposer, block.number - 1);
-        bool msgSenderIsProposer = proposer == msg.sender;
-        address[] memory signers = proposal.signers;
-        for (uint256 i = 0; i < signers.length; ++i) {
-            msgSenderIsProposer = msgSenderIsProposer || msg.sender == signers[i];
-            votes += nouns.getPriorVotes(signers[i], block.number - 1);
+        bool msgSenderIsProposerOrSigner = proposal.proposer == msg.sender;
+        if (!msgSenderIsProposerOrSigner) {
+            address[] storage signers = proposal.signers;
+            for (uint256 i = 0; i < signers.length; ++i) {
+                if (msg.sender == signers[i]) {
+                    msgSenderIsProposerOrSigner = true;
+                    break;
+                }
+            }
         }
-
-        require(
-            msgSenderIsProposer || votes <= proposal.proposalThreshold,
-            'NounsDAO::cancel: proposer above threshold'
-        );
+        require(msgSenderIsProposerOrSigner, 'NounsDAO::cancel: only proposer or signers can cancel');
 
         proposal.canceled = true;
         INounsDAOExecutor timelock = getProposalTimelock(ds, proposal);
@@ -783,31 +784,14 @@ library NounsDAOProposals {
     }
 
     /**
-     * @notice reverts if `proposer` is the proposer or signer of an active proposal.
-     * This is a spam protection mechanism to limit the number of proposals each noun can back.
-     */
-    function checkNoActiveProp(NounsDAOTypes.Storage storage ds, address proposer) internal view {
-        uint256 latestProposalId = ds.latestProposalIds[proposer];
-        if (latestProposalId != 0) {
-            NounsDAOTypes.ProposalState proposersLatestProposalState = stateInternal(ds, latestProposalId);
-            if (
-                proposersLatestProposalState == NounsDAOTypes.ProposalState.ObjectionPeriod ||
-                proposersLatestProposalState == NounsDAOTypes.ProposalState.Active ||
-                proposersLatestProposalState == NounsDAOTypes.ProposalState.Pending ||
-                proposersLatestProposalState == NounsDAOTypes.ProposalState.Updatable
-            ) revert ProposerAlreadyHasALiveProposal();
-        }
-    }
-
-    /**
      * @dev Extracted this function to fix the `Stack too deep` error `proposeBySigs` hit.
      */
     function verifySignersCanBackThisProposalAndCountTheirVotes(
         NounsDAOTypes.Storage storage ds,
+        uint256[] calldata tokenIds,
         NounsDAOTypes.ProposerSignature[] memory proposerSignatures,
         ProposalTxs memory txs,
-        string memory description,
-        uint256 proposalId
+        string memory description
     ) internal returns (uint256 votes, address[] memory signers) {
         NounsTokenLike nouns = ds.nouns;
         bytes memory proposalEncodeData = calcProposalEncodeData(msg.sender, txs, description);
@@ -815,19 +799,19 @@ library NounsDAOProposals {
         signers = new address[](proposerSignatures.length);
         uint256 numSigners = 0;
         for (uint256 i = 0; i < proposerSignatures.length; ++i) {
-            verifyProposalSignature(ds, proposalEncodeData, proposerSignatures[i], PROPOSAL_TYPEHASH);
+            if (proposerSignatures[i].tokenIds.length == 0) continue;
 
             address signer = proposerSignatures[i].signer;
-            checkNoActiveProp(ds, signer);
 
-            uint256 signerVotes = nouns.getPriorVotes(signer, block.number - 1);
-            if (signerVotes == 0) {
-                continue;
-            }
+            verifyProposalSignature(ds, proposalEncodeData, proposerSignatures[i], PROPOSAL_TYPEHASH);
+            require(tokensAreUnique(proposerSignatures[i].tokenIds), 'tokenIds are not unique');
+            require(
+                NounsDAODelegation.isDelegate(signer, proposerSignatures[i].tokenIds),
+                'signer is not the delegate of provided tokenIds'
+            );
 
             signers[numSigners++] = signer;
-            ds.latestProposalIds[signer] = proposalId;
-            votes += signerVotes;
+            votes += proposerSignatures[i].tokenIds.length;
         }
 
         if (numSigners < proposerSignatures.length) {
@@ -836,10 +820,6 @@ library NounsDAOProposals {
                 mstore(signers, numSigners)
             }
         }
-
-        checkNoActiveProp(ds, msg.sender);
-        ds.latestProposalIds[msg.sender] = proposalId;
-        votes += nouns.getPriorVotes(msg.sender, block.number - 1);
     }
 
     function calcProposalEncodeData(
@@ -1005,20 +985,25 @@ library NounsDAOProposals {
         return (number * bps) / 10000;
     }
 
-    function tokensDontHaveActiveProposals(
-        NounsDAOTypes.Storage storage ds,
-        uint256[] memory tokenIds
-    ) internal view returns (bool) {
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            uint256 proposalId = ds.latestProposalIdsByTokenId[tokenIds[i]];
-            NounsDAOTypes.ProposalState proposalState = state(ds, proposalId);
-            if (
-                proposalState == NounsDAOTypes.ProposalState.Active ||
-                proposalState == NounsDAOTypes.ProposalState.Pending
-            ) {
-                return false;
-            }
+    function tokensAreUnique(uint256[] memory tokenIds) internal pure returns (bool) {
+        if (tokenIds.length == 0) return true;
+
+        for (uint256 i = 0; i < tokenIds.length - 1; i++) {
+            if (tokenIds[i + 1] <= tokenIds[i]) return false;
         }
+        return true;
+    }
+
+    function signersAndProposerAreUnique(
+        NounsDAOTypes.ProposerSignature[] memory proposerSignatures
+    ) internal view returns (bool) {
+        if (proposerSignatures.length == 0) return true;
+
+        for (uint256 i = 0; i < proposerSignatures.length - 1; ++i) {
+            if (proposerSignatures[i + 1].signer <= proposerSignatures[i].signer) return false;
+            if (proposerSignatures[i].signer == msg.sender) return false;
+        }
+        if (proposerSignatures[proposerSignatures.length - 1].signer == msg.sender) return false;
         return true;
     }
 }
