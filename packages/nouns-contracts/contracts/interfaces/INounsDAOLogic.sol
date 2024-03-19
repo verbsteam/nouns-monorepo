@@ -199,20 +199,38 @@ interface INounsDAOLogic {
      * @notice Queues a proposal of state succeeded
      * @param proposalId The id of the proposal to queue
      */
-    function queue(uint256 proposalId) external;
+    function queue(
+        uint256 proposalId,
+        address[] memory targets,
+        uint256[] memory values,
+        string[] memory signatures,
+        bytes[] memory calldatas
+    ) external;
 
     /**
      * @notice Executes a queued proposal if eta has passed
      * @param proposalId The id of the proposal to execute
      */
-    function execute(uint256 proposalId) external;
+    function execute(
+        uint256 proposalId,
+        address[] memory targets,
+        uint256[] memory values,
+        string[] memory signatures,
+        bytes[] memory calldatas
+    ) external;
 
     /**
      * @notice Cancels a proposal only if sender is the proposer or a signer, or proposer & signers voting power
      * dropped below proposal threshold
      * @param proposalId The id of the proposal to cancel
      */
-    function cancel(uint256 proposalId) external;
+    function cancel(
+        uint256 proposalId,
+        address[] memory targets,
+        uint256[] memory values,
+        string[] memory signatures,
+        bytes[] memory calldatas
+    ) external;
 
     /**
      * @notice Gets the state of a proposal
@@ -220,26 +238,6 @@ interface INounsDAOLogic {
      * @return Proposal state
      */
     function state(uint256 proposalId) external view returns (NounsDAOTypes.ProposalState);
-
-    /**
-     * @notice Gets actions of a proposal
-     * @param proposalId the id of the proposal
-     * @return targets
-     * @return values
-     * @return signatures
-     * @return calldatas
-     */
-    function getActions(
-        uint256 proposalId
-    )
-        external
-        view
-        returns (
-            address[] memory targets,
-            uint256[] memory values,
-            string[] memory signatures,
-            bytes[] memory calldatas
-        );
 
     /**
      * @notice Gets the receipt for a voter on a given proposal
@@ -591,7 +589,13 @@ interface INounsDAOLogic {
      * @notice Vetoes a proposal only if sender is the vetoer and the proposal has not been executed.
      * @param proposalId The id of the proposal to veto
      */
-    function veto(uint256 proposalId) external;
+    function veto(
+        uint256 proposalId,
+        address[] memory targets,
+        uint256[] memory values,
+        string[] memory signatures,
+        bytes[] memory calldatas
+    ) external;
 
     function castRefundableVote(
         uint256[] calldata tokenIds,

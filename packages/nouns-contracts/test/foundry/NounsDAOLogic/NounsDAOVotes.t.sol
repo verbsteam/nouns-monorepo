@@ -6,11 +6,13 @@ import { NounsDAOLogicBaseTest } from './NounsDAOLogicBaseTest.sol';
 import { NounsDAOVotes } from '../../../contracts/governance/NounsDAOVotes.sol';
 import { NounsDAOTypes } from '../../../contracts/governance/NounsDAOInterfaces.sol';
 import { NounDelegationToken } from '../../../contracts/governance/NounDelegationToken.sol';
+import { NounsDAOProposals } from '../../../contracts/governance/NounsDAOProposals.sol';
 
 contract NounsDAOLogicVotesBaseTest is NounsDAOLogicBaseTest {
     address proposer = makeAddr('proposer');
     address voter = makeAddr('voter');
     uint256 proposalId;
+    NounsDAOProposals.ProposalTxs proposalTxs;
     uint256[] proposerTokenIds;
     uint256[] voterTokenIds;
 
@@ -22,7 +24,8 @@ contract NounsDAOLogicVotesBaseTest is NounsDAOLogicBaseTest {
         voterTokenIds.push(mintTo(voter));
 
         assertTrue(nounsToken.getCurrentVotes(proposer) > dao.proposalThreshold());
-        proposalId = propose(proposer, proposerTokenIds, proposer, 0.01 ether, '', '', '', 0);
+        proposalTxs = makeTxs(proposer, 0.01 ether, '', '');
+        proposalId = propose(proposer, proposerTokenIds, proposalTxs, '', 0);
     }
 }
 
@@ -103,7 +106,7 @@ contract NounsDAOLogicVotesTest is NounsDAOLogicVotesBaseTest {
         dao.castRefundableVote(voterTokenIds, proposalId, 1);
         vm.roll(block.number + dao.votingPeriod());
 
-        dao.queue(proposalId);
+        dao.queue(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
 
         vm.expectRevert('NounsDAO::castVoteInternal: voting is closed');
         vm.prank(proposer);

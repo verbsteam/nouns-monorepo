@@ -11,6 +11,7 @@ import { IProxyRegistry } from '../../contracts/external/opensea/IProxyRegistry.
 import { NounsDAOExecutor } from '../../contracts/governance/NounsDAOExecutor.sol';
 import { NounsDAOLogicSharedBaseTest } from './helpers/NounsDAOLogicSharedBase.t.sol';
 import { DelegationHelpers } from './helpers/DelegationHelpers.sol';
+import { NounsDAOProposals } from '../../contracts/governance/NounsDAOProposals.sol';
 
 abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
     function setUp() public override {
@@ -45,9 +46,10 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
     }
 
     function testCanceledGivenCanceledProposal() public {
-        uint256 proposalId = propose(address(0x1234), 100, '', '');
+        NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
+        uint256 proposalId = propose(txs);
         vm.prank(proposer);
-        daoProxy.cancel(proposalId);
+        daoProxy.cancel(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
 
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Canceled);
     }
@@ -90,24 +92,26 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
     }
 
     function testQueueRevertsGivenDefeatedProposal() public {
-        uint256 proposalId = propose(address(0x1234), 100, '', '');
+        NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
+        uint256 proposalId = propose(txs);
         vm.roll(block.number + daoProxy.votingDelay() + daoProxy.votingPeriod() + 1);
 
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Defeated);
 
         vm.expectRevert('NounsDAO::queue: proposal can only be queued if it is succeeded');
-        daoProxy.queue(proposalId);
+        daoProxy.queue(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
     }
 
     function testQueueRevertsGivenCanceledProposal() public {
-        uint256 proposalId = propose(address(0x1234), 100, '', '');
+        NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
+        uint256 proposalId = propose(txs);
         vm.prank(proposer);
-        daoProxy.cancel(proposalId);
+        daoProxy.cancel(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
 
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Canceled);
 
         vm.expectRevert('NounsDAO::queue: proposal can only be queued if it is succeeded');
-        daoProxy.queue(proposalId);
+        daoProxy.queue(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
     }
 
     function testQueued() public {
@@ -116,14 +120,15 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
         mint(forVoter, 4);
         mint(againstVoter, 3);
 
-        uint256 proposalId = propose(address(0x1234), 100, '', '');
+        NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
+        uint256 proposalId = propose(txs);
         startVotingPeriod();
         vote(forVoter, proposalId, 1);
         vote(againstVoter, proposalId, 0);
         endVotingPeriod();
 
         // anyone can queue
-        daoProxy.queue(proposalId);
+        daoProxy.queue(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
 
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Queued);
     }
@@ -134,12 +139,14 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
         mint(forVoter, 4);
         mint(againstVoter, 3);
 
-        uint256 proposalId = propose(address(0x1234), 100, '', '');
+        NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
+
+        uint256 proposalId = propose(txs);
         startVotingPeriod();
         vote(forVoter, proposalId, 1);
         vote(againstVoter, proposalId, 0);
         endVotingPeriod();
-        daoProxy.queue(proposalId);
+        daoProxy.queue(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
         vm.warp(block.timestamp + timelock.delay() + timelock.GRACE_PERIOD() + 1);
 
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Expired);
@@ -149,26 +156,28 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
         address forVoter = utils.getNextUserAddress();
         mint(forVoter, 4);
 
+        NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
+
         uint256 proposalId = propose(address(0x1234), 100, '', '');
         vm.expectRevert('NounsDAO::execute: proposal can only be executed if it is queued');
-        daoProxy.execute(proposalId);
+        daoProxy.execute(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
 
         startVotingPeriod();
         vote(forVoter, proposalId, 1);
         vm.expectRevert('NounsDAO::execute: proposal can only be executed if it is queued');
-        daoProxy.execute(proposalId);
+        daoProxy.execute(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
 
         endVotingPeriod();
         vm.expectRevert('NounsDAO::execute: proposal can only be executed if it is queued');
-        daoProxy.execute(proposalId);
+        daoProxy.execute(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
 
-        daoProxy.queue(proposalId);
+        daoProxy.queue(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
         vm.expectRevert("NounsDAOExecutor::executeTransaction: Transaction hasn't surpassed time lock.");
-        daoProxy.execute(proposalId);
+        daoProxy.execute(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
 
         vm.warp(block.timestamp + timelock.delay() + 1);
         vm.deal(address(timelock), 100);
-        daoProxy.execute(proposalId);
+        daoProxy.execute(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
 
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Executed);
 

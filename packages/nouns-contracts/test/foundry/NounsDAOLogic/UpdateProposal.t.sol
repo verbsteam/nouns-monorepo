@@ -7,7 +7,7 @@ import { DeployUtils } from '../helpers/DeployUtils.sol';
 import { SigUtils, ERC1271Stub } from '../helpers/SigUtils.sol';
 import { NounsDAOProposals } from '../../../contracts/governance/NounsDAOProposals.sol';
 import { NounsDAOProxyV3 } from '../../../contracts/governance/NounsDAOProxyV3.sol';
-import { NounsDAOTypes } from '../../../contracts/governance/NounsDAOInterfaces.sol';
+import { NounsDAOTypes, NounsDAOEventsV3 } from '../../../contracts/governance/NounsDAOInterfaces.sol';
 import { NounsToken } from '../../../contracts/NounsToken.sol';
 import { NounsSeeder } from '../../../contracts/NounsSeeder.sol';
 import { IProxyRegistry } from '../../../contracts/external/opensea/IProxyRegistry.sol';
@@ -16,6 +16,7 @@ import { NounsDAOExecutor } from '../../../contracts/governance/NounsDAOExecutor
 abstract contract UpdateProposalBaseTest is NounsDAOLogicBaseTest {
     address proposer = makeAddr('proposer');
     uint256 proposalId;
+    NounsDAOProposals.ProposalTxs proposalTxs;
     uint256[] tokenIds;
 
     function setUp() public override {
@@ -29,7 +30,8 @@ abstract contract UpdateProposalBaseTest is NounsDAOLogicBaseTest {
         vm.stopPrank();
         tokenIds = [1];
 
-        proposalId = propose(proposer, tokenIds, makeAddr('target'), 0, '', '', '', 0);
+        proposalTxs = makeTxs(makeAddr('target'), 0, '', '');
+        proposalId = propose(proposer, tokenIds, proposalTxs, '', 0);
         vm.roll(block.number + 1);
     }
 }
@@ -61,7 +63,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
 
     function test_givenPropWithSigners_reverts() public {
         vm.startPrank(proposer);
-        dao.cancel(proposalId);
+        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
 
         (address signer, uint256 signerPK) = makeAddrAndKey('signer');
         nounsToken.transferFrom(proposer, signer, 1);
@@ -132,7 +134,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
         dao.updateProposalDescription(proposalId, '', '');
 
         // Queued
-        dao.queue(proposalId);
+        dao.queue(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Queued);
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
         updateProposal(proposer, proposalId, makeAddr('target'), 0, '', '', '');
@@ -146,7 +148,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
 
         // Executed
         vm.warp(block.timestamp + TIMELOCK_DELAY);
-        dao.execute(proposalId);
+        dao.execute(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Executed);
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
         updateProposal(proposer, proposalId, makeAddr('target'), 0, '', '', '');
@@ -161,7 +163,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
 
     function test_givenStateCanceled_reverts() public {
         vm.prank(proposer);
-        dao.cancel(proposalId);
+        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Canceled);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -198,7 +200,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
         vm.prank(proposer);
         dao.castRefundableVote(tokenIds, proposalId, 1);
         vm.roll(block.number + VOTING_PERIOD);
-        dao.queue(proposalId);
+        dao.queue(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         vm.warp(block.timestamp + TIMELOCK_DELAY + timelock.GRACE_PERIOD());
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Expired);
 
@@ -215,7 +217,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
 
     function test_givenStateVetoed_reverts() public {
         vm.prank(vetoer);
-        dao.veto(proposalId);
+        dao.veto(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Vetoed);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -308,32 +310,26 @@ contract UpdateProposalTransactionsTest is UpdateProposalBaseTest {
     }
 
     function test_givenStateUpdatable_updateProposal_updatesTxsAndEmitsEvent() public {
+        bytes32 txsHashBefore = dao.proposalsV3(proposalId).txsHash;
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Updatable);
-        (
-            address[] memory targetsBefore,
-            uint256[] memory valuesBefore,
-            string[] memory signaturesBefore,
-            bytes[] memory calldatasBefore
-        ) = dao.getActions(proposalId);
-        assertEq(targetsBefore[0], makeAddr('target'));
-        assertEq(valuesBefore[0], 0);
-        assertEq(signaturesBefore[0], '');
-        assertEq(calldatasBefore[0], '');
+
         NounsDAOProposals.ProposalTxs memory txsAfter = makeTxs(
             makeAddr('targetAfter'),
             1,
             'signatureAfter',
             'dataAfter'
         );
+        bytes32 expectedHashAfter = NounsDAOProposals.hashProposal(txsAfter);
 
         vm.expectEmit(true, true, true, true);
-        emit ProposalUpdated(
+        emit NounsDAOEventsV3.ProposalUpdated(
             proposalId,
             proposer,
             txsAfter.targets,
             txsAfter.values,
             txsAfter.signatures,
             txsAfter.calldatas,
+            expectedHashAfter,
             'descriptionAfter',
             'some update message'
         );
@@ -348,45 +344,33 @@ contract UpdateProposalTransactionsTest is UpdateProposalBaseTest {
             'some update message'
         );
 
-        (
-            address[] memory targetsAfter,
-            uint256[] memory valuesAfter,
-            string[] memory signaturesAfter,
-            bytes[] memory calldatasAfter
-        ) = dao.getActions(proposalId);
-        assertEq(targetsAfter[0], makeAddr('targetAfter'));
-        assertEq(valuesAfter[0], 1);
-        assertEq(signaturesAfter[0], 'signatureAfter');
-        assertEq(calldatasAfter[0], 'dataAfter');
+        bytes32 txsHashAfter = dao.proposalsV3(proposalId).txsHash;
+
+        assertNotEq(txsHashBefore, txsHashAfter);
+        assertEq(txsHashAfter, expectedHashAfter);
     }
 
     function test_givenStateUpdatable_updateProposalTransactions_updatesTxsAndEmitsEvent() public {
+        bytes32 txsHashBefore = dao.proposalsV3(proposalId).txsHash;
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Updatable);
-        (
-            address[] memory targetsBefore,
-            uint256[] memory valuesBefore,
-            string[] memory signaturesBefore,
-            bytes[] memory calldatasBefore
-        ) = dao.getActions(proposalId);
-        assertEq(targetsBefore[0], makeAddr('target'));
-        assertEq(valuesBefore[0], 0);
-        assertEq(signaturesBefore[0], '');
-        assertEq(calldatasBefore[0], '');
+
         NounsDAOProposals.ProposalTxs memory txsAfter = makeTxs(
             makeAddr('targetAfter'),
             1,
             'signatureAfter',
             'dataAfter'
         );
+        bytes32 expectedHashAfter = NounsDAOProposals.hashProposal(txsAfter);
 
         vm.expectEmit(true, true, true, true);
-        emit ProposalTransactionsUpdated(
+        emit NounsDAOEventsV3.ProposalTransactionsUpdated(
             proposalId,
             proposer,
             txsAfter.targets,
             txsAfter.values,
             txsAfter.signatures,
             txsAfter.calldatas,
+            expectedHashAfter,
             'some update message'
         );
         updateProposalTransactions(
@@ -399,16 +383,10 @@ contract UpdateProposalTransactionsTest is UpdateProposalBaseTest {
             'some update message'
         );
 
-        (
-            address[] memory targetsAfter,
-            uint256[] memory valuesAfter,
-            string[] memory signaturesAfter,
-            bytes[] memory calldatasAfter
-        ) = dao.getActions(proposalId);
-        assertEq(targetsAfter[0], makeAddr('targetAfter'));
-        assertEq(valuesAfter[0], 1);
-        assertEq(signaturesAfter[0], 'signatureAfter');
-        assertEq(calldatasAfter[0], 'dataAfter');
+        bytes32 txsHashAfter = dao.proposalsV3(proposalId).txsHash;
+
+        assertNotEq(txsHashBefore, txsHashAfter);
+        assertEq(txsHashAfter, expectedHashAfter);
     }
 }
 
@@ -417,7 +395,7 @@ contract UpdateProposalDescriptionTest is UpdateProposalBaseTest {
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Updatable);
 
         vm.expectEmit(true, true, true, true);
-        emit ProposalDescriptionUpdated(proposalId, proposer, 'new description', 'update message');
+        emit NounsDAOEventsV3.ProposalDescriptionUpdated(proposalId, proposer, 'new description', 'update message');
         vm.prank(proposer);
         dao.updateProposalDescription(proposalId, 'new description', 'update message');
     }

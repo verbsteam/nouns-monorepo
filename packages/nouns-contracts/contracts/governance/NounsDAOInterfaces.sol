@@ -140,7 +140,8 @@ interface NounsDAOEventsV3 {
         uint256 updatePeriodEndBlock,
         uint256 proposalThreshold,
         uint256 quorumVotes,
-        uint32 indexed clientId
+        uint32 indexed clientId,
+        bytes32 txsHash
     );
 
     /// @notice Emitted when a proposal is created to be executed on timelockV1
@@ -154,6 +155,7 @@ interface NounsDAOEventsV3 {
         uint256[] values,
         string[] signatures,
         bytes[] calldatas,
+        bytes32 txsHash,
         string description,
         string updateMessage
     );
@@ -166,6 +168,7 @@ interface NounsDAOEventsV3 {
         uint256[] values,
         string[] signatures,
         bytes[] calldatas,
+        bytes32 txsHash,
         string updateMessage
     );
 
@@ -484,6 +487,8 @@ interface NounsDAOTypes {
         bool executeOnTimelockV1;
         /// @notice How many votes and vote transactions each clientId contributed to this proposal
         mapping(uint32 => ClientVoteData) voteClients;
+        /// @notice The hash of the proposal's transactions
+        bytes32 txsHash;
     }
 
     struct ClientVoteData {
@@ -575,6 +580,8 @@ interface NounsDAOTypes {
         uint256 objectionPeriodEndBlock;
         /// @notice When true, a proposal would be executed on timelockV1 instead of the current timelock
         bool executeOnTimelockV1;
+        /// @notice The hash of the proposal's transactions
+        bytes32 txsHash;
     }
 
     struct ProposalCondensedV2 {

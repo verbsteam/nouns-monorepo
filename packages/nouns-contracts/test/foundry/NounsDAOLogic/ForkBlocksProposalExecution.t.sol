@@ -8,6 +8,7 @@ import { NounsDAOProposals } from '../../../contracts/governance/NounsDAOProposa
 abstract contract ExecutableProposalState is NounsDAOLogicBaseTest {
     address user = makeAddr('user');
     uint256 proposalId;
+    NounsDAOProposals.ProposalTxs proposalTxs;
     uint256[] tokenIds;
 
     function setUp() public virtual override {
@@ -21,7 +22,8 @@ abstract contract ExecutableProposalState is NounsDAOLogicBaseTest {
         tokenIds = [1];
 
         // prep an executable proposal
-        proposalId = propose(user, makeAddr('target'), 0, '', '', '');
+        proposalTxs = makeTxs(makeAddr('target'), 0, '', '');
+        proposalId = propose(user, proposalTxs, '');
 
         vm.roll(block.number + dao.votingDelay() + dao.proposalUpdatablePeriodInBlocks() + 1);
 
@@ -29,7 +31,7 @@ abstract contract ExecutableProposalState is NounsDAOLogicBaseTest {
         dao.castRefundableVote(tokenIds, proposalId, 1);
 
         vm.roll(block.number + dao.votingPeriod());
-        dao.queue(proposalId);
+        dao.queue(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
 
         vm.warp(block.timestamp + timelock.delay());
     }
@@ -37,7 +39,7 @@ abstract contract ExecutableProposalState is NounsDAOLogicBaseTest {
 
 contract ExecutableProposalStateTest is ExecutableProposalState {
     function test_executionWorksWhenNoActiveFork() public {
-        dao.execute(proposalId);
+        dao.execute(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
     }
 }
 
@@ -58,11 +60,11 @@ abstract contract ExecutableProposalWithActiveForkState is ExecutableProposalSta
 contract ExecutableProposalWithActiveForkStateTest is ExecutableProposalWithActiveForkState {
     function test_executionRevertsDuringFork() public {
         vm.expectRevert(NounsDAOProposals.CannotExecuteDuringForkingPeriod.selector);
-        dao.execute(proposalId);
+        dao.execute(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
     }
 
     function test_executionWorksAfterForkIsDone() public {
         vm.warp(dao.forkEndTimestamp() + 1);
-        dao.execute(proposalId);
+        dao.execute(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
     }
 }

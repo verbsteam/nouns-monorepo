@@ -7,7 +7,7 @@ import { SigUtils, ERC1271Stub } from '../helpers/SigUtils.sol';
 import { ProxyRegistryMock } from '../helpers/ProxyRegistryMock.sol';
 import { NounsDAOProposals } from '../../../contracts/governance/NounsDAOProposals.sol';
 import { NounsDAOProxyV3 } from '../../../contracts/governance/NounsDAOProxyV3.sol';
-import { NounsDAOTypes, NounsTokenLike } from '../../../contracts/governance/NounsDAOInterfaces.sol';
+import { NounsDAOTypes, NounsTokenLike, NounsDAOEventsV3 } from '../../../contracts/governance/NounsDAOInterfaces.sol';
 import { NounsToken } from '../../../contracts/NounsToken.sol';
 import { NounsSeeder } from '../../../contracts/NounsSeeder.sol';
 import { IProxyRegistry } from '../../../contracts/external/opensea/IProxyRegistry.sol';
@@ -18,55 +18,6 @@ import { DelegationHelpers } from '../helpers/DelegationHelpers.sol';
 
 abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
     using DelegationHelpers for address;
-
-    event ProposalUpdated(
-        uint256 indexed id,
-        address indexed proposer,
-        address[] targets,
-        uint256[] values,
-        string[] signatures,
-        bytes[] calldatas,
-        string description,
-        string updateMessage
-    );
-
-    event ProposalTransactionsUpdated(
-        uint256 indexed id,
-        address indexed proposer,
-        address[] targets,
-        uint256[] values,
-        string[] signatures,
-        bytes[] calldatas,
-        string updateMessage
-    );
-
-    event ProposalDescriptionUpdated(
-        uint256 indexed id,
-        address indexed proposer,
-        string description,
-        string updateMessage
-    );
-
-    event ProposalCreated(
-        uint256 id,
-        address proposer,
-        address[] targets,
-        uint256[] values,
-        string[] signatures,
-        bytes[] calldatas,
-        uint256 startBlock,
-        uint256 endBlock,
-        string description
-    );
-
-    event ProposalCreatedWithRequirements(
-        uint256 id,
-        address[] signers,
-        uint256 updatePeriodEndBlock,
-        uint256 proposalThreshold,
-        uint256 quorumVotes,
-        uint32 indexed clientId
-    );
 
     NounsToken nounsToken;
     INounsDAOLogic dao;
@@ -106,6 +57,46 @@ abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
         nounsToken.transferFrom(minter, to, tokenID);
         vm.stopPrank();
         vm.roll(block.number + 1);
+    }
+
+    function propose(
+        address proposer,
+        NounsDAOProposals.ProposalTxs memory txs,
+        string memory description
+    ) internal returns (uint256 proposalId) {
+        return propose(proposer, txs, description, 0);
+    }
+
+    function propose(
+        address proposer,
+        NounsDAOProposals.ProposalTxs memory txs,
+        string memory description,
+        uint32 clientId
+    ) internal returns (uint256 proposalId) {
+        NounsTokenLike nouns = dao.nouns();
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = nouns.tokenOfOwnerByIndex(proposer, 0);
+
+        return propose(proposer, tokenIds, txs, description, clientId);
+    }
+
+    function propose(
+        address proposer,
+        uint256[] memory tokenIds,
+        NounsDAOProposals.ProposalTxs memory txs,
+        string memory description,
+        uint32 clientId
+    ) internal returns (uint256 proposalId) {
+        vm.prank(proposer);
+        proposalId = dao.propose(
+            tokenIds,
+            txs.targets,
+            txs.values,
+            txs.signatures,
+            txs.calldatas,
+            description,
+            clientId
+        );
     }
 
     function propose(
@@ -311,6 +302,12 @@ abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
         return NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas);
     }
 
+    struct ExpectNewPropEventsTemp {
+        uint256 expectedStartBlock;
+        uint256 expectedEndBlock;
+        bytes32 txsHash;
+    }
+
     function expectNewPropEvents(
         NounsDAOProposals.ProposalTxs memory txs,
         address expectedProposer,
@@ -319,30 +316,33 @@ abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
         uint256 expectedMinQuorumVotes,
         address[] memory expectedSigners
     ) internal {
-        uint256 expectedStartBlock = block.number + proposalUpdatablePeriodInBlocks + VOTING_DELAY;
-        uint256 expectedEndBlock = expectedStartBlock + VOTING_PERIOD;
+        ExpectNewPropEventsTemp memory temp;
+        temp.expectedStartBlock = block.number + proposalUpdatablePeriodInBlocks + VOTING_DELAY;
+        temp.expectedEndBlock = temp.expectedStartBlock + VOTING_PERIOD;
+        temp.txsHash = NounsDAOProposals.hashProposal(txs);
 
         vm.expectEmit(true, true, true, true);
-        emit ProposalCreated(
+        emit NounsDAOEventsV3.ProposalCreated(
             expectedPropId,
             expectedProposer,
             txs.targets,
             txs.values,
             txs.signatures,
             txs.calldatas,
-            expectedStartBlock,
-            expectedEndBlock,
+            temp.expectedStartBlock,
+            temp.expectedEndBlock,
             'description'
         );
 
         vm.expectEmit(true, true, true, true);
-        emit ProposalCreatedWithRequirements(
+        emit NounsDAOEventsV3.ProposalCreatedWithRequirements(
             expectedPropId,
             expectedSigners,
             block.number + proposalUpdatablePeriodInBlocks,
             expectedPropThreshold,
             expectedMinQuorumVotes,
-            0 // clientId
+            0, // clientId
+            temp.txsHash
         );
     }
 }

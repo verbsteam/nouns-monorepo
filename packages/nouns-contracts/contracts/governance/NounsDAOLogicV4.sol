@@ -452,16 +452,28 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * @notice Queues a proposal of state succeeded
      * @param proposalId The id of the proposal to queue
      */
-    function queue(uint256 proposalId) external {
-        ds.queue(proposalId);
+    function queue(
+        uint256 proposalId,
+        address[] memory targets,
+        uint256[] memory values,
+        string[] memory signatures,
+        bytes[] memory calldatas
+    ) external {
+        ds.queue(proposalId, NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas));
     }
 
     /**
      * @notice Executes a queued proposal if eta has passed
      * @param proposalId The id of the proposal to execute
      */
-    function execute(uint256 proposalId) external {
-        ds.execute(proposalId);
+    function execute(
+        uint256 proposalId,
+        address[] memory targets,
+        uint256[] memory values,
+        string[] memory signatures,
+        bytes[] memory calldatas
+    ) external {
+        ds.execute(proposalId, NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas));
     }
 
     /**
@@ -469,8 +481,14 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * dropped below proposal threshold
      * @param proposalId The id of the proposal to cancel
      */
-    function cancel(uint256 proposalId) external {
-        ds.cancel(proposalId);
+    function cancel(
+        uint256 proposalId,
+        address[] memory targets,
+        uint256[] memory values,
+        string[] memory signatures,
+        bytes[] memory calldatas
+    ) external {
+        ds.cancel(proposalId, NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas));
     }
 
     /**
@@ -480,29 +498,6 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      */
     function state(uint256 proposalId) public view returns (ProposalState) {
         return ds.state(proposalId);
-    }
-
-    /**
-     * @notice Gets actions of a proposal
-     * @param proposalId the id of the proposal
-     * @return targets
-     * @return values
-     * @return signatures
-     * @return calldatas
-     */
-    function getActions(
-        uint256 proposalId
-    )
-        external
-        view
-        returns (
-            address[] memory targets,
-            uint256[] memory values,
-            string[] memory signatures,
-            bytes[] memory calldatas
-        )
-    {
-        return ds.getActions(proposalId);
     }
 
     /**
@@ -666,8 +661,14 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * @notice Vetoes a proposal only if sender is the vetoer and the proposal has not been executed.
      * @param proposalId The id of the proposal to veto
      */
-    function veto(uint256 proposalId) external {
-        ds.veto(proposalId);
+    function veto(
+        uint256 proposalId,
+        address[] memory targets,
+        uint256[] memory values,
+        string[] memory signatures,
+        bytes[] memory calldatas
+    ) external {
+        ds.veto(proposalId, NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas));
     }
 
     /**

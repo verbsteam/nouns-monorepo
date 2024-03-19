@@ -13,6 +13,7 @@ import { INounsTokenForkLike } from '../../../contracts/governance/fork/newdao/g
 import { Utils } from './Utils.sol';
 import { NounsTokenLike } from '../../../contracts/governance/NounsDAOInterfaces.sol';
 import { DelegationHelpers } from './DelegationHelpers.sol';
+import { NounsDAOProposals } from '../../../contracts/governance/NounsDAOProposals.sol';
 
 interface DAOLogicFork {
     function _setQuorumVotesBPS(uint256 newQuorumVotesBPS) external;
@@ -56,6 +57,46 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
 
     function daoVersion() internal virtual returns (uint256) {
         return 0; // override to specify version
+    }
+
+    function makeTxs(
+        address target,
+        uint256 value,
+        string memory signature,
+        bytes memory data
+    ) internal returns (NounsDAOProposals.ProposalTxs memory txs) {
+        txs.targets = new address[](1);
+        txs.targets[0] = target;
+        txs.values = new uint256[](1);
+        txs.values[0] = value;
+        txs.signatures = new string[](1);
+        txs.signatures[0] = signature;
+        txs.calldatas = new bytes[](1);
+        txs.calldatas[0] = data;
+    }
+
+    function propose(NounsDAOProposals.ProposalTxs memory txs) internal returns (uint256 proposalId) {
+        return propose(proposer, txs);
+    }
+
+    function propose(
+        address _proposer,
+        NounsDAOProposals.ProposalTxs memory txs
+    ) internal returns (uint256 proposalId) {
+        NounsTokenLike nouns = daoProxy.nouns();
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = nouns.tokenOfOwnerByIndex(_proposer, 0);
+
+        return propose(_proposer, tokenIds, txs);
+    }
+
+    function propose(
+        address _proposer,
+        uint256[] memory tokenIds,
+        NounsDAOProposals.ProposalTxs memory txs
+    ) internal returns (uint256 proposalId) {
+        vm.prank(_proposer);
+        proposalId = daoProxy.propose(tokenIds, txs.targets, txs.values, txs.signatures, txs.calldatas, 'my proposal');
     }
 
     function propose(

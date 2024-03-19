@@ -14,6 +14,7 @@ abstract contract ZeroState is NounsDAOLogicBaseTest {
     address rando = makeAddr('rando');
     address otherUser = makeAddr('otherUser');
     uint256 proposalId;
+    NounsDAOProposals.ProposalTxs proposalTxs;
     address signerWithVote;
     uint256 signerWithVotePK;
     address target = makeAddr('target');
@@ -37,11 +38,11 @@ abstract contract ProposalUpdatableState is ZeroState {
         vm.stopPrank();
         tokenIds = [1];
 
-        NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('target'), 0, '', '');
+        proposalTxs = makeTxs(makeAddr('target'), 0, '', '');
         uint256 expirationTimestamp = block.timestamp + 1234;
         NounsDAOTypes.ProposerSignature[] memory proposerSignatures = new NounsDAOTypes.ProposerSignature[](1);
         proposerSignatures[0] = NounsDAOTypes.ProposerSignature(
-            signProposal(proposer, signerWithVotePK, txs, 'description', expirationTimestamp, address(dao)),
+            signProposal(proposer, signerWithVotePK, proposalTxs, 'description', expirationTimestamp, address(dao)),
             signerWithVote,
             expirationTimestamp,
             signerWithVote.allVotesOf(dao)
@@ -51,10 +52,10 @@ abstract contract ProposalUpdatableState is ZeroState {
         proposalId = dao.proposeBySigs(
             proposer.allVotesOf(dao),
             proposerSignatures,
-            txs.targets,
-            txs.values,
-            txs.signatures,
-            txs.calldatas,
+            proposalTxs.targets,
+            proposalTxs.values,
+            proposalTxs.signatures,
+            proposalTxs.calldatas,
             'description'
         );
         vm.stopPrank();
@@ -70,14 +71,14 @@ abstract contract IsCancellable is ZeroState {
         vm.expectEmit(true, true, true, true);
         emit ProposalCanceled(proposalId);
         vm.prank(proposer);
-        dao.cancel(proposalId);
+        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Canceled));
     }
 
     function test_randoCantCancel() public {
         vm.expectRevert(bytes('NounsDAO::cancel: only proposer or signers can cancel'));
         vm.prank(rando);
-        dao.cancel(proposalId);
+        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
     }
 }
 
@@ -85,7 +86,7 @@ abstract contract IsNotCancellable is ZeroState {
     function test_proposerCantCancel() public {
         vm.expectRevert(NounsDAOProposals.CantCancelProposalAtFinalState.selector);
         vm.prank(proposer);
-        dao.cancel(proposalId);
+        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
     }
 }
 
@@ -166,7 +167,7 @@ abstract contract ProposalQueuedState is ProposalSucceededState {
     function setUp() public virtual override {
         super.setUp();
 
-        dao.queue(proposalId);
+        dao.queue(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Queued));
     }
 }
@@ -182,7 +183,7 @@ abstract contract ProposalExecutedState is ProposalQueuedState {
         super.setUp();
 
         vm.warp(dao.proposalsV3(proposalId).eta + 1);
-        dao.execute(proposalId);
+        dao.execute(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Executed));
     }
 }
