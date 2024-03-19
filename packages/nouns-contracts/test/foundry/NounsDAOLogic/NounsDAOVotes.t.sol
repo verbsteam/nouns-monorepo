@@ -180,4 +180,14 @@ contract NounsDAOLogicVotes_ActiveState_Test is NounsDAOLogicVotesBaseTest {
         vm.prank(delegate);
         dao.castRefundableVote(tokenIds, proposalId, 1);
     }
+
+    function test_givenZeroVotes_emitsEvent() public {
+        uint256[] memory tokenIds = new uint256[](0);
+
+        vm.expectEmit(true, true, true, true);
+        emit NounsDAOVotes.VoteCast(proposer, tokenIds, proposalId, 1, tokenIds.length, '');
+
+        vm.prank(proposer);
+        dao.castRefundableVote(tokenIds, proposalId, 1);
+    }
 }

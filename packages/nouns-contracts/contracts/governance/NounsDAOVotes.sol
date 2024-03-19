@@ -199,6 +199,7 @@ library NounsDAOVotes {
         uint8 support
     ) internal {
         require(support <= 2, 'NounsDAO::castVoteDuringVotingPeriodInternal: invalid vote type');
+        if (tokenIds.length == 0) return;
         NounsDAOTypes.Proposal storage proposal = ds._proposals[proposalId];
         for (uint256 i = 0; i < tokenIds.length; i++) {
             (bool hasVoted, ) = ds.votingReceipts[proposalId].getVoting(tokenIds[i]);
