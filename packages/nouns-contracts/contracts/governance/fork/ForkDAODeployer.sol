@@ -21,7 +21,7 @@ import { ERC1967Proxy } from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { IForkDAODeployer, INounsDAOForkEscrow, NounsDAOTypes } from '../NounsDAOInterfaces.sol';
 import { NounsTokenFork } from './newdao/token/NounsTokenFork.sol';
 import { NounsAuctionHouseFork } from './newdao/NounsAuctionHouseFork.sol';
-import { NounsDAOExecutorV2 } from '../NounsDAOExecutorV2.sol';
+import { NounsDAOExecutorV2 } from './newdao/governance/NounsDAOExecutorV2.sol';
 import { NounsDAOLogicV1Fork } from './newdao/governance/NounsDAOLogicV1Fork.sol';
 import { NounsToken } from '../../NounsToken.sol';
 import { NounsAuctionHouse } from '../../NounsAuctionHouse.sol';
