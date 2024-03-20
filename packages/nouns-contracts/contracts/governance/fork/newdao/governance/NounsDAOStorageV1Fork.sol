@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.19;
 
-import { NounsDAOExecutorV2 } from '../../../NounsDAOExecutorV2.sol';
+import { NounsDAOExecutorV2 } from './NounsDAOExecutorV2.sol';
 import { INounsTokenForkLike } from './INounsTokenForkLike.sol';
 
 /**
