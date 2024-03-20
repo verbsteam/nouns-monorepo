@@ -84,29 +84,12 @@ contract NounsDAOLogicVotesTest is NounsDAOLogicVotesBaseTest {
         dao.castRefundableVote(voterTokenIds, proposalId, 1);
     }
 
-    function test_givenStateSucceeded_reverts() public {
-        vm.roll(block.number + dao.proposalUpdatablePeriodInBlocks() + dao.votingDelay() + 1);
-        assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Active);
-
-        vm.prank(voter);
-        dao.castRefundableVote(voterTokenIds, proposalId, 1);
-
-        vm.roll(block.number + dao.votingPeriod());
-        assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Succeeded);
-
-        vm.expectRevert('NounsDAO::castVoteInternal: voting is closed');
-        vm.prank(voter);
-        dao.castRefundableVote(voterTokenIds, proposalId, 1);
-    }
-
     function test_givenStateQueued_reverts() public {
         // Get the proposal to succeeded state
         vm.roll(block.number + dao.proposalUpdatablePeriodInBlocks() + dao.votingDelay() + 1);
         vm.prank(voter);
         dao.castRefundableVote(voterTokenIds, proposalId, 1);
-        vm.roll(block.number + dao.votingPeriod());
-
-        dao.queue(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        vm.roll(dao.proposalsV3(proposalId).endBlock + 1);
 
         vm.expectRevert('NounsDAO::castVoteInternal: voting is closed');
         vm.prank(proposer);

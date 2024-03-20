@@ -53,6 +53,11 @@ abstract contract DeployUtilsV3 is DeployUtils {
             )
         );
         address(new NounsDAOForkEscrow(address(dao), address(nounsToken)));
+
+        vm.startPrank(timelock);
+        dao._setQueuePeriod(QUEUE_PERIOD);
+        dao._setGracePeriod(GRACE_PERIOD);
+        vm.stopPrank();
     }
 
     function _createDAOV3Proxy(
@@ -89,7 +94,7 @@ abstract contract DeployUtilsV3 is DeployUtils {
     function _deployDAOV3WithParams(uint256 auctionDuration) internal returns (INounsDAOLogic) {
         Temp memory t;
         t.timelock = NounsDAOExecutorV2(payable(address(new ERC1967Proxy(address(new NounsDAOExecutorV2()), ''))));
-        t.timelock.initialize(address(1), TIMELOCK_DELAY);
+        t.timelock.initialize(address(1));
 
         auctionHouseProxyAdmin = new NounsAuctionHouseProxyAdmin();
         NounsAuctionHouseProxy auctionProxy = new NounsAuctionHouseProxy(
@@ -167,6 +172,8 @@ abstract contract DeployUtilsV3 is DeployUtils {
         vm.startPrank(address(t.timelock));
         dao._setForkPeriod(FORK_PERIOD);
         dao._setForkThresholdBPS(FORK_THRESHOLD_BPS);
+        dao._setQueuePeriod(QUEUE_PERIOD);
+        dao._setGracePeriod(GRACE_PERIOD);
         vm.stopPrank();
 
         return dao;

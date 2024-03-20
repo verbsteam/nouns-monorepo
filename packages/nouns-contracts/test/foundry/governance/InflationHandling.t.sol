@@ -221,6 +221,6 @@ contract SupplyIncreasedStateTest is SupplyIncreasedState {
 
         vm.roll(block.number + votingPeriod);
 
-        assertEq(uint256(daoProxy.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Succeeded));
+        assertEq(uint256(daoProxy.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Queued));
     }
 }

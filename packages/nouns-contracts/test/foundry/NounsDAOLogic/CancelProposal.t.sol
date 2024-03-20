@@ -83,7 +83,11 @@ abstract contract ProposalPendingState is ProposalUpdatableState {
         super.setUp();
 
         vm.roll(dao.proposalsV3(proposalId).updatePeriodEndBlock + 1);
-        assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Pending));
+        assertEq(
+            uint256(dao.state(proposalId)),
+            uint256(NounsDAOTypes.ProposalState.Pending),
+            'should be Pending but it is not'
+        );
     }
 }
 
@@ -98,7 +102,11 @@ abstract contract ProposalActiveState is ProposalPendingState {
         super.setUp();
 
         vm.roll(dao.proposalsV3(proposalId).startBlock + 1);
-        assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Active));
+        assertEq(
+            uint256(dao.state(proposalId)),
+            uint256(NounsDAOTypes.ProposalState.Active),
+            'should be Active but it is not'
+        );
     }
 }
 
@@ -117,7 +125,11 @@ abstract contract ProposalObjectionPeriodState is ProposalActiveState {
         dao.castRefundableVote(tokenIds, proposalId, 1);
 
         vm.roll(dao.proposalsV3(proposalId).endBlock + 1);
-        assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.ObjectionPeriod));
+        assertEq(
+            uint256(dao.state(proposalId)),
+            uint256(NounsDAOTypes.ProposalState.ObjectionPeriod),
+            'should be ObjectionPeriod but it is not'
+        );
     }
 }
 
@@ -127,7 +139,7 @@ contract ProposalObjectionPeriodStateTest is ProposalObjectionPeriodState, IsCan
     }
 }
 
-abstract contract ProposalSucceededState is ProposalActiveState {
+abstract contract ProposalQueuedState is ProposalActiveState {
     function setUp() public virtual override {
         super.setUp();
 
@@ -135,22 +147,11 @@ abstract contract ProposalSucceededState is ProposalActiveState {
         dao.castRefundableVote(tokenIds, proposalId, 1);
 
         vm.roll(dao.proposalsV3(proposalId).endBlock + 1);
-        assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Succeeded));
-    }
-}
-
-contract ProposalSucceededStateTest is ProposalSucceededState, IsCancellable {
-    function setUp() public override(ProposalSucceededState, NounsDAOLogicBaseTest) {
-        ProposalSucceededState.setUp();
-    }
-}
-
-abstract contract ProposalQueuedState is ProposalSucceededState {
-    function setUp() public virtual override {
-        super.setUp();
-
-        dao.queue(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
-        assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Queued));
+        assertEq(
+            uint256(dao.state(proposalId)),
+            uint256(NounsDAOTypes.ProposalState.Queued),
+            'should be Queued but it is not'
+        );
     }
 }
 
@@ -164,9 +165,13 @@ abstract contract ProposalExecutedState is ProposalQueuedState {
     function setUp() public virtual override {
         super.setUp();
 
-        vm.warp(dao.proposalsV3(proposalId).eta + 1);
+        vm.roll(dao.proposalsV3(proposalId).eta + 1);
         dao.execute(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
-        assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Executed));
+        assertEq(
+            uint256(dao.state(proposalId)),
+            uint256(NounsDAOTypes.ProposalState.Executed),
+            'should be Executed but it is not'
+        );
     }
 }
 

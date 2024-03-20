@@ -648,22 +648,16 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
         dao.updateProposalBySigs(proposalId, sigs, txs.targets, txs.values, txs.signatures, txs.calldatas, '', '');
 
-        // Succeeded
+        // Queued
         vm.prank(_signers[0]);
         dao.castRefundableVote(signer0TokenIds, proposalId, 1);
-        vm.roll(block.number + VOTING_PERIOD);
-        assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Succeeded);
-        vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
-        dao.updateProposalBySigs(proposalId, sigs, txs.targets, txs.values, txs.signatures, txs.calldatas, '', '');
-
-        // Queued
-        dao.queue(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        vm.roll(dao.proposalsV3(proposalId).endBlock + 1);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Queued);
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
         dao.updateProposalBySigs(proposalId, sigs, txs.targets, txs.values, txs.signatures, txs.calldatas, '', '');
 
         // Executed
-        vm.warp(block.timestamp + TIMELOCK_DELAY);
+        vm.roll(dao.proposalsV3(proposalId).eta);
         dao.execute(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Executed);
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -741,9 +735,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         // dao.castRefundableVote(proposalId, 1);
         vm.prank(_signers[0]);
         dao.castRefundableVote(signer0TokenIds, proposalId, 1);
-        vm.roll(block.number + VOTING_PERIOD);
-        dao.queue(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
-        vm.warp(block.timestamp + TIMELOCK_DELAY + timelock.GRACE_PERIOD());
+        vm.roll(dao.proposalsV3(proposalId).eta + dao.gracePeriod() + 1);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Expired);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));

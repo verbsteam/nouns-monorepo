@@ -449,20 +449,6 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
     }
 
     /**
-     * @notice Queues a proposal of state succeeded
-     * @param proposalId The id of the proposal to queue
-     */
-    function queue(
-        uint256 proposalId,
-        address[] memory targets,
-        uint256[] memory values,
-        string[] memory signatures,
-        bytes[] memory calldatas
-    ) external {
-        ds.queue(proposalId, NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas));
-    }
-
-    /**
      * @notice Executes a queued proposal if eta has passed
      * @param proposalId The id of the proposal to execute
      */
@@ -919,6 +905,10 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
 
     function delegationToken() public view returns (address) {
         return ds.delegationToken;
+    }
+
+    function gracePeriod() public view returns (uint32) {
+        return ds.gracePeriod;
     }
 
     receive() external payable {}
