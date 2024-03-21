@@ -97,7 +97,7 @@ pragma solidity ^0.8.19;
 import { UUPSUpgradeable } from '@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol';
 import { NounsDAOEventsFork } from './NounsDAOEventsFork.sol';
 import { NounsDAOStorageV1Fork } from './NounsDAOStorageV1Fork.sol';
-import { NounsDAOExecutorV2 } from './NounsDAOExecutorV2.sol';
+import { NounsDAOExecutorForkV2 } from './NounsDAOExecutorForkV2.sol';
 import { INounsTokenForkLike } from './INounsTokenForkLike.sol';
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import { ReentrancyGuardUpgradeable } from '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
@@ -185,7 +185,7 @@ contract NounsDAOLogicV1Fork is UUPSUpgradeable, ReentrancyGuardUpgradeable, Nou
         emit QuorumVotesBPSSet(quorumVotesBPS, quorumVotesBPS_);
 
         admin = timelock_;
-        timelock = NounsDAOExecutorV2(payable(timelock_));
+        timelock = NounsDAOExecutorForkV2(payable(timelock_));
         nouns = INounsTokenForkLike(nouns_);
         votingPeriod = votingPeriod_;
         votingDelay = votingDelay_;

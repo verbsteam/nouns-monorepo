@@ -45,7 +45,7 @@ import { Initializable } from '@openzeppelin/contracts-upgradeable/proxy/utils/I
 import { UUPSUpgradeable } from '@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol';
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 
-contract NounsDAOExecutorV2 is UUPSUpgradeable, Initializable {
+contract NounsDAOExecutorForkV2 is UUPSUpgradeable, Initializable {
     using SafeERC20 for IERC20;
     using Address for address payable;
 
@@ -220,11 +220,7 @@ contract NounsDAOExecutorV2 is UUPSUpgradeable, Initializable {
         emit ETHSent(recipient, ethToSend);
     }
 
-    function sendERC20(
-        address recipient,
-        address erc20Token,
-        uint256 tokensToSend
-    ) external {
+    function sendERC20(address recipient, address erc20Token, uint256 tokensToSend) external {
         require(msg.sender == admin, 'NounsDAOExecutor::sendERC20: Call must come from admin.');
 
         IERC20(erc20Token).safeTransfer(recipient, tokensToSend);
