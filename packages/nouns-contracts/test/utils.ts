@@ -448,6 +448,8 @@ export const deployGovernorV3WithV3Proxy = async (
       lastMinuteWindowInBlocks: 0,
       objectionPeriodDurationInBlocks: 0,
       proposalUpdatablePeriodInBlocks: 0,
+      queuePeriod: 7200,
+      gracePeriod: 7200 * 14,
     },
     dynamicQuorumParams || {
       minQuorumVotesBPS: MIN_QUORUM_VOTES_BPS,

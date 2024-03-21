@@ -44,5 +44,8 @@ contract NounsDAOLogicV3Harness is NounsDAOLogicV4 {
         NounsDAOAdmin._setLastMinuteWindowInBlocks(daoParams_.lastMinuteWindowInBlocks);
         NounsDAOAdmin._setObjectionPeriodDurationInBlocks(daoParams_.objectionPeriodDurationInBlocks);
         NounsDAOAdmin._setProposalUpdatablePeriodInBlocks(daoParams_.proposalUpdatablePeriodInBlocks);
+
+        ds.queuePeriod = daoParams_.queuePeriod;
+        ds.gracePeriod = daoParams_.gracePeriod;
     }
 }

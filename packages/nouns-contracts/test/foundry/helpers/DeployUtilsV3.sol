@@ -53,11 +53,6 @@ abstract contract DeployUtilsV3 is DeployUtils {
             )
         );
         address(new NounsDAOForkEscrow(address(dao), address(nounsToken)));
-
-        vm.startPrank(timelock);
-        dao._setQueuePeriod(QUEUE_PERIOD);
-        dao._setGracePeriod(GRACE_PERIOD);
-        vm.stopPrank();
     }
 
     function _createDAOV3Proxy(
@@ -75,7 +70,9 @@ abstract contract DeployUtilsV3 is DeployUtils {
                 proposalThresholdBPS: PROPOSAL_THRESHOLD,
                 lastMinuteWindowInBlocks: LAST_MINUTE_BLOCKS,
                 objectionPeriodDurationInBlocks: OBJECTION_PERIOD_BLOCKS,
-                proposalUpdatablePeriodInBlocks: 0
+                proposalUpdatablePeriodInBlocks: 0,
+                queuePeriod: QUEUE_PERIOD,
+                gracePeriod: GRACE_PERIOD
             }),
             NounsDAOTypes.DynamicQuorumParams({
                 minQuorumVotesBPS: 200,
@@ -148,7 +145,9 @@ abstract contract DeployUtilsV3 is DeployUtils {
                         proposalThresholdBPS: PROPOSAL_THRESHOLD,
                         lastMinuteWindowInBlocks: LAST_MINUTE_BLOCKS,
                         objectionPeriodDurationInBlocks: OBJECTION_PERIOD_BLOCKS,
-                        proposalUpdatablePeriodInBlocks: UPDATABLE_PERIOD_BLOCKS
+                        proposalUpdatablePeriodInBlocks: UPDATABLE_PERIOD_BLOCKS,
+                        queuePeriod: QUEUE_PERIOD,
+                        gracePeriod: GRACE_PERIOD
                     }),
                     NounsDAOTypes.DynamicQuorumParams({
                         minQuorumVotesBPS: 200,

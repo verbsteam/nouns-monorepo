@@ -639,6 +639,8 @@ interface NounsDAOTypes {
         uint32 lastMinuteWindowInBlocks;
         uint32 objectionPeriodDurationInBlocks;
         uint32 proposalUpdatablePeriodInBlocks;
+        uint32 queuePeriod;
+        uint32 gracePeriod;
     }
 
     /// @notice A checkpoint for storing dynamic quorum params from a given block

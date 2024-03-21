@@ -172,6 +172,8 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
         NounsDAOAdmin._setLastMinuteWindowInBlocks(daoParams_.lastMinuteWindowInBlocks);
         NounsDAOAdmin._setObjectionPeriodDurationInBlocks(daoParams_.objectionPeriodDurationInBlocks);
         NounsDAOAdmin._setProposalUpdatablePeriodInBlocks(daoParams_.proposalUpdatablePeriodInBlocks);
+        NounsDAOAdmin._setQueuePeriod(daoParams_.queuePeriod);
+        NounsDAOAdmin._setGracePeriod(daoParams_.gracePeriod);
     }
 
     /**
