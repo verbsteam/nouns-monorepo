@@ -15,6 +15,7 @@ import { NounsAuctionHouseV2 } from '../contracts/NounsAuctionHouseV2.sol';
 import { NounsAuctionHouseProxyAdmin } from '../contracts/proxies/NounsAuctionHouseProxyAdmin.sol';
 import { NounsAuctionHouseProxy } from '../contracts/proxies/NounsAuctionHouseProxy.sol';
 import { NounsDAOLogicV4Harness } from '../contracts/test/NounsDAOLogicV4Harness.sol';
+import { INounsDAOLogic } from '../contracts/interfaces/INounsDAOLogic.sol';
 import { NounsDAOExecutorV2 } from '../contracts/governance/NounsDAOExecutorV2.sol';
 import { NounsDAOExecutorProxy } from '../contracts/governance/NounsDAOExecutorProxy.sol';
 import { NounsDAOProxyV3 } from '../contracts/governance/NounsDAOProxyV3.sol';
@@ -53,8 +54,8 @@ contract DeployEverything is OptimizedScript, DescriptorHelpers {
     uint256 constant PROPOSAL_THRESHOLD = 1;
     uint32 constant QUEUE_PERIOD = 1 minutes / 12;
     uint32 constant GRACE_PERIOD = 14 days / 12;
-    uint32 constant LAST_MINUTE_BLOCKS = 1 minutes / 12;
-    uint32 constant OBJECTION_PERIOD_BLOCKS = 3 minutes / 12;
+    uint32 constant LAST_MINUTE_BLOCKS = 0;
+    uint32 constant OBJECTION_PERIOD_BLOCKS = 0;
     uint32 constant UPDATABLE_PERIOD_BLOCKS = 2 minutes / 12;
 
     // Data Config
@@ -74,6 +75,7 @@ contract DeployEverything is OptimizedScript, DescriptorHelpers {
         NounsAuctionHouseProxyAdmin ahProxyAdmin;
         NounsAuctionHouseV2 ahProxy;
         NounsDAOLogicV4Harness govLogic;
+        INounsDAOLogic govProxy;
         NounsDAOExecutorV2 treasury;
         address govProxyPredictedAddress;
         NounDelegationToken delegationToken;
@@ -89,10 +91,9 @@ contract DeployEverything is OptimizedScript, DescriptorHelpers {
         address vetoer;
     }
 
-    function run() public {
-        requireDefaultProfile();
+    function run() public returns (Contracts memory c) {
+        // requireDefaultProfile();
 
-        Contracts memory c;
         Config memory config;
         config.deployerKey = vm.envUint('DEPLOYER_PRIVATE_KEY');
         config.deployer = vm.addr(config.deployerKey);
@@ -140,24 +141,28 @@ contract DeployEverything is OptimizedScript, DescriptorHelpers {
         c.treasury = deployAndInitTimelockV2(c.govProxyPredictedAddress);
         c.forkEscrow = new NounsDAOForkEscrow(c.govProxyPredictedAddress, address(c.nouns));
 
-        NounsDAOProxyV3 govProxy = new NounsDAOProxyV3(
-            address(c.treasury),
-            address(c.nouns),
-            address(c.delegationToken),
-            address(c.forkEscrow),
-            address(c.forkDAODeployer),
-            config.vetoer,
-            address(c.treasury),
-            address(c.govLogic),
-            defaultDAOParams(),
-            defaultDQParams()
+        c.govProxy = INounsDAOLogic(
+            address(
+                new NounsDAOProxyV3(
+                    address(c.treasury),
+                    address(c.nouns),
+                    address(c.delegationToken),
+                    address(c.forkEscrow),
+                    address(c.forkDAODeployer),
+                    config.vetoer,
+                    address(c.treasury),
+                    address(c.govLogic),
+                    defaultDAOParams(),
+                    defaultDQParams()
+                )
+            )
         );
         require(
-            address(govProxy) == c.govProxyPredictedAddress,
+            address(c.govProxy) == c.govProxyPredictedAddress,
             'gov proxy address does not match prediction. fix your nonce offset value.'
         );
 
-        c.dataProxy = deployData(address(c.nouns), address(govProxy), address(c.treasury));
+        c.dataProxy = deployData(address(c.nouns), address(c.govProxy), address(c.treasury));
 
         c.ahProxy.initialize(
             AUCTION_HOUSE_RESERVE_PRICE,
