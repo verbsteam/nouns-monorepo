@@ -32,7 +32,7 @@ import { NounsDAODataProxy } from '../contracts/governance/data/NounsDAODataProx
 
 contract DeployEverything is OptimizedScript, DescriptorHelpers {
     // Auction House Config
-    uint256 constant AUCTION_HOUSE_DURATION = 86400;
+    uint256 constant AUCTION_HOUSE_DURATION = 120;
     uint192 constant AUCTION_HOUSE_RESERVE_PRICE = 1;
     uint56 constant AUCTION_HOUSE_TIME_BUFFER = 30;
     uint8 constant AUCTION_HOUSE_MIN_BID_INC_PERCENTAGE = 1;
