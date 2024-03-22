@@ -21,7 +21,7 @@ import './NounsDAOInterfaces.sol';
 import { NounDelegationToken } from './NounDelegationToken.sol';
 
 library NounsDAODelegation {
-    function isDelegate(address account, uint256[] memory tokenIds) external view returns (bool) {
+    function isDelegate(address account, uint256[] memory tokenIds) internal view returns (bool) {
         NounDelegationToken dt = NounDelegationToken(ds().delegationToken);
         require(
             dt.lastTransferTimestamp(account) < block.timestamp,
@@ -36,7 +36,7 @@ library NounsDAODelegation {
         return true;
     }
 
-    function delegateOf(uint256 tokenId, NounDelegationToken dt) public view returns (address) {
+    function delegateOf(uint256 tokenId, NounDelegationToken dt) internal view returns (address) {
         address delegationOwner = dt.ownerOfNoRevert(tokenId);
         if (delegationOwner != address(0)) return delegationOwner;
 
