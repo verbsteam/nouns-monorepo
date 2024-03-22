@@ -9,7 +9,7 @@ import { NounsDAOAdmin } from '../governance/NounsDAOAdmin.sol';
  * @dev A modified version of NounsDAOLogicV4 that exposes the `initialize` function for testing purposes.
  * The modification removes bounds checks on parameters, so we can dramatically shorten test scenarios setup.
  */
-contract NounsDAOLogicV3Harness is NounsDAOLogicV4 {
+contract NounsDAOLogicV4Harness is NounsDAOLogicV4 {
     using NounsDAOAdmin for Storage;
 
     function initialize(

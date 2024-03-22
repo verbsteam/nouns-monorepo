@@ -14,7 +14,7 @@ import { IProxyRegistry } from '../contracts/external/opensea/IProxyRegistry.sol
 import { NounsAuctionHouseV2 } from '../contracts/NounsAuctionHouseV2.sol';
 import { NounsAuctionHouseProxyAdmin } from '../contracts/proxies/NounsAuctionHouseProxyAdmin.sol';
 import { NounsAuctionHouseProxy } from '../contracts/proxies/NounsAuctionHouseProxy.sol';
-import { NounsDAOLogicV4 } from '../contracts/governance/NounsDAOLogicV4.sol';
+import { NounsDAOLogicV4Harness } from '../contracts/test/NounsDAOLogicV4Harness.sol';
 import { NounsDAOExecutorV2 } from '../contracts/governance/NounsDAOExecutorV2.sol';
 import { NounsDAOExecutorProxy } from '../contracts/governance/NounsDAOExecutorProxy.sol';
 import { NounsDAOProxyV3 } from '../contracts/governance/NounsDAOProxyV3.sol';
@@ -42,20 +42,20 @@ contract DeployEverything is OptimizedScript, DescriptorHelpers {
 
     // Fork Config
     uint256 public constant DELAYED_GOV_DURATION = 30 days;
-    uint256 public constant FORK_DAO_VOTING_PERIOD = 40; // 8 minutes
+    uint256 public constant FORK_DAO_VOTING_PERIOD = 25; // 5 minutes
     uint256 public constant FORK_DAO_VOTING_DELAY = 1;
     uint256 public constant FORK_DAO_PROPOSAL_THRESHOLD_BPS = 25; // 0.25%
     uint256 public constant FORK_DAO_QUORUM_VOTES_BPS = 1000; // 10%
 
     // Gov Config
-    uint256 constant VOTING_PERIOD = 7_200; // 24 hours
+    uint256 constant VOTING_PERIOD = 5 minutes / 12;
     uint256 constant VOTING_DELAY = 1;
     uint256 constant PROPOSAL_THRESHOLD = 1;
-    uint32 constant QUEUE_PERIOD = 1 days / 12;
+    uint32 constant QUEUE_PERIOD = 1 minutes / 12;
     uint32 constant GRACE_PERIOD = 14 days / 12;
-    uint32 constant LAST_MINUTE_BLOCKS = 10;
-    uint32 constant OBJECTION_PERIOD_BLOCKS = 10;
-    uint32 constant UPDATABLE_PERIOD_BLOCKS = 10;
+    uint32 constant LAST_MINUTE_BLOCKS = 1 minutes / 12;
+    uint32 constant OBJECTION_PERIOD_BLOCKS = 3 minutes / 12;
+    uint32 constant UPDATABLE_PERIOD_BLOCKS = 2 minutes / 12;
 
     // Data Config
     uint256 public constant CREATE_CANDIDATE_COST = 0.01 ether;
@@ -73,7 +73,7 @@ contract DeployEverything is OptimizedScript, DescriptorHelpers {
         NounsToken nouns;
         NounsAuctionHouseProxyAdmin ahProxyAdmin;
         NounsAuctionHouseV2 ahProxy;
-        NounsDAOLogicV4 govLogic;
+        NounsDAOLogicV4Harness govLogic;
         NounsDAOExecutorV2 treasury;
         address govProxyPredictedAddress;
         NounDelegationToken delegationToken;
@@ -134,7 +134,7 @@ contract DeployEverything is OptimizedScript, DescriptorHelpers {
             FORK_DAO_PROPOSAL_THRESHOLD_BPS,
             FORK_DAO_QUORUM_VOTES_BPS
         );
-        c.govLogic = new NounsDAOLogicV4();
+        c.govLogic = new NounsDAOLogicV4Harness();
 
         c.govProxyPredictedAddress = predictContractAddress(config.deployer, 3);
         c.treasury = deployAndInitTimelockV2(c.govProxyPredictedAddress);
