@@ -49,7 +49,7 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
         uint256 proposalId = propose(txs);
         vm.prank(proposer);
-        daoProxy.cancel(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
+        daoProxy.cancel(proposalId);
 
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Canceled);
     }

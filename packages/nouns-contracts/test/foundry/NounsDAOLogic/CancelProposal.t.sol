@@ -22,14 +22,14 @@ abstract contract ZeroState is NounsDAOLogicBaseTest {
         vm.expectEmit(true, true, true, true);
         emit ProposalCanceled(proposalId);
         vm.prank(proposer);
-        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.cancel(proposalId);
         assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Canceled));
     }
 
     function verifyRandoCantCancel() internal {
         vm.expectRevert(bytes('NounsDAO::cancel: only proposer or signers can cancel'));
         vm.prank(rando);
-        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.cancel(proposalId);
     }
 }
 
@@ -68,7 +68,7 @@ abstract contract IsNotCancellable is ZeroState {
     function test_proposerCantCancel() public {
         vm.expectRevert(NounsDAOProposals.CantCancelProposalAtFinalState.selector);
         vm.prank(proposer);
-        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.cancel(proposalId);
     }
 }
 

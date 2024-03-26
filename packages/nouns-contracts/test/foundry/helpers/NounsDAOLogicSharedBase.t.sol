@@ -68,7 +68,7 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
         uint256 value,
         string memory signature,
         bytes memory data
-    ) internal returns (NounsDAOProposals.ProposalTxs memory txs) {
+    ) internal pure returns (NounsDAOProposals.ProposalTxs memory txs) {
         txs.targets = new address[](1);
         txs.targets[0] = target;
         txs.values = new uint256[](1);

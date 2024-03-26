@@ -57,7 +57,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             address[] memory signers,
             uint256[] memory signerPKs,
             uint256[] memory expirationTimestamps,
-            uint256[][] memory tokenIds
+
         ) = signersPKsExpirations();
 
         proposalTxs = makeTxs(makeAddr('target'), 0, '', '');
@@ -682,7 +682,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         );
 
         vm.prank(proposer);
-        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.cancel(proposalId);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Canceled);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -760,7 +760,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         );
 
         vm.prank(vetoer);
-        dao.veto(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.veto(proposalId);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Vetoed);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -819,7 +819,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
 
         // cancel the existing prop proposer has so we don't revert due to this reason
         vm.prank(proposer);
-        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.cancel(proposalId);
 
         // giving proposer enough votes to propose
         vm.startPrank(_signers[_signers.length - 1]);

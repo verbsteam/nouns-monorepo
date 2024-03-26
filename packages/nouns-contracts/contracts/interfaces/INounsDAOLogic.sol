@@ -212,13 +212,7 @@ interface INounsDAOLogic {
      * dropped below proposal threshold
      * @param proposalId The id of the proposal to cancel
      */
-    function cancel(
-        uint256 proposalId,
-        address[] memory targets,
-        uint256[] memory values,
-        string[] memory signatures,
-        bytes[] memory calldatas
-    ) external;
+    function cancel(uint256 proposalId) external;
 
     /**
      * @notice Gets the state of a proposal
@@ -581,13 +575,7 @@ interface INounsDAOLogic {
      * @notice Vetoes a proposal only if sender is the vetoer and the proposal has not been executed.
      * @param proposalId The id of the proposal to veto
      */
-    function veto(
-        uint256 proposalId,
-        address[] memory targets,
-        uint256[] memory values,
-        string[] memory signatures,
-        bytes[] memory calldatas
-    ) external;
+    function veto(uint256 proposalId) external;
 
     function castRefundableVote(
         uint256[] calldata tokenIds,

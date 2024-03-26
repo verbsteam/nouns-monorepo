@@ -45,12 +45,7 @@ abstract contract SepoliaForkBaseTest is Test {
         }
     }
 
-    function setProposalTx(
-        address target,
-        uint256 value,
-        string memory signature,
-        bytes memory data
-    ) internal returns (uint256 proposalId) {
+    function setProposalTx(address target, uint256 value, string memory signature, bytes memory data) internal {
         address[] memory targets_ = new address[](1);
         targets_[0] = target;
         uint256[] memory values_ = new uint256[](1);

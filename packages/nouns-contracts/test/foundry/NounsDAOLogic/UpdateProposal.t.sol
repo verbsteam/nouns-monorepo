@@ -63,7 +63,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
 
     function test_givenPropWithSigners_reverts() public {
         vm.startPrank(proposer);
-        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.cancel(proposalId);
 
         (address signer, uint256 signerPK) = makeAddrAndKey('signer');
         nounsToken.transferFrom(proposer, signer, 1);
@@ -150,7 +150,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
 
     function test_givenStateCanceled_reverts() public {
         vm.prank(proposer);
-        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.cancel(proposalId);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Canceled);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -202,7 +202,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
 
     function test_givenStateVetoed_reverts() public {
         vm.prank(vetoer);
-        dao.veto(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.veto(proposalId);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Vetoed);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
