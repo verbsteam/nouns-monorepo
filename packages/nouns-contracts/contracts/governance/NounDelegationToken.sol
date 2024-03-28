@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.20;
 
-import { ERC721Enumerable } from '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
-import { ERC721 } from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+import { ERC721 } from '../base/solady/ERC721.sol';
 import { IERC721 } from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import { NFTDescriptorV2 } from '../libs/NFTDescriptorV2.sol';
 import { INounsDescriptorV2 } from '../interfaces/INounsDescriptorV2.sol';
@@ -19,17 +18,26 @@ interface INouns {
     function descriptor() external view returns (INounsDescriptorV2);
 }
 
-contract NounDelegationToken is ERC721Enumerable {
+contract NounDelegationToken is ERC721 {
     using Strings for uint256;
 
     INouns nouns;
     string backgroundColor;
     mapping(address => address) public delegationAdmins;
-    mapping(address => uint256) public lastTransferTimestamp;
 
-    constructor(address nouns_, string memory backgroundColor_) ERC721('NounDelegationToken', 'NDT') {
+    constructor(address nouns_, string memory backgroundColor_) {
         nouns = INouns(nouns_);
         backgroundColor = backgroundColor_;
+    }
+
+    /// @dev Returns the token collection name.
+    function name() public pure virtual override returns (string memory) {
+        return 'NounDelegationToken';
+    }
+
+    /// @dev Returns the token collection symbol.
+    function symbol() public pure virtual override returns (string memory) {
+        return 'NDT';
     }
 
     function mint(address to, uint256 tokenId) public {
@@ -61,6 +69,10 @@ contract NounDelegationToken is ERC721Enumerable {
         return address(0);
     }
 
+    function getTokenLastTransfer(uint256 tokenId) external view returns (uint96) {
+        return _getExtraData(tokenId);
+    }
+
     function _isApprovedOrOwner(address spender, uint256 tokenId) internal view virtual override returns (bool) {
         address nouner = nouns.ownerOf(tokenId);
         if (nouner == spender || delegationAdmins[nouner] == spender) return true;
@@ -71,7 +83,7 @@ contract NounDelegationToken is ERC721Enumerable {
     function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal virtual override {
         super._beforeTokenTransfer(from, to, tokenId);
 
-        lastTransferTimestamp[to] = block.timestamp;
+        _setExtraData(tokenId, uint96(block.timestamp));
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
