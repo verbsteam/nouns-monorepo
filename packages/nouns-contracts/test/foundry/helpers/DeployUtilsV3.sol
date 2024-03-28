@@ -70,7 +70,9 @@ abstract contract DeployUtilsV3 is DeployUtils {
                 proposalThresholdBPS: PROPOSAL_THRESHOLD,
                 lastMinuteWindowInBlocks: LAST_MINUTE_BLOCKS,
                 objectionPeriodDurationInBlocks: OBJECTION_PERIOD_BLOCKS,
-                proposalUpdatablePeriodInBlocks: 0
+                proposalUpdatablePeriodInBlocks: 0,
+                queuePeriod: QUEUE_PERIOD,
+                gracePeriod: GRACE_PERIOD
             }),
             NounsDAOTypes.DynamicQuorumParams({
                 minQuorumVotesBPS: 200,
@@ -89,7 +91,7 @@ abstract contract DeployUtilsV3 is DeployUtils {
     function _deployDAOV3WithParams(uint256 auctionDuration) internal returns (INounsDAOLogic) {
         Temp memory t;
         t.timelock = NounsDAOExecutorV2(payable(address(new ERC1967Proxy(address(new NounsDAOExecutorV2()), ''))));
-        t.timelock.initialize(address(1), TIMELOCK_DELAY);
+        t.timelock.initialize(address(1));
 
         auctionHouseProxyAdmin = new NounsAuctionHouseProxyAdmin();
         NounsAuctionHouseProxy auctionProxy = new NounsAuctionHouseProxy(
@@ -143,7 +145,9 @@ abstract contract DeployUtilsV3 is DeployUtils {
                         proposalThresholdBPS: PROPOSAL_THRESHOLD,
                         lastMinuteWindowInBlocks: LAST_MINUTE_BLOCKS,
                         objectionPeriodDurationInBlocks: OBJECTION_PERIOD_BLOCKS,
-                        proposalUpdatablePeriodInBlocks: UPDATABLE_PERIOD_BLOCKS
+                        proposalUpdatablePeriodInBlocks: UPDATABLE_PERIOD_BLOCKS,
+                        queuePeriod: QUEUE_PERIOD,
+                        gracePeriod: GRACE_PERIOD
                     }),
                     NounsDAOTypes.DynamicQuorumParams({
                         minQuorumVotesBPS: 200,
@@ -167,6 +171,8 @@ abstract contract DeployUtilsV3 is DeployUtils {
         vm.startPrank(address(t.timelock));
         dao._setForkPeriod(FORK_PERIOD);
         dao._setForkThresholdBPS(FORK_THRESHOLD_BPS);
+        dao._setQueuePeriod(QUEUE_PERIOD);
+        dao._setGracePeriod(GRACE_PERIOD);
         vm.stopPrank();
 
         return dao;

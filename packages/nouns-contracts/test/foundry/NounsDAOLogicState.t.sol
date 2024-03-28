@@ -49,7 +49,7 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
         uint256 proposalId = propose(txs);
         vm.prank(proposer);
-        daoProxy.cancel(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
+        daoProxy.cancel(proposalId);
 
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Canceled);
     }
@@ -76,44 +76,6 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Defeated);
     }
 
-    function testSucceeded() public {
-        address forVoter = utils.getNextUserAddress();
-        address againstVoter = utils.getNextUserAddress();
-        mint(forVoter, 4);
-        mint(againstVoter, 3);
-
-        uint256 proposalId = propose(address(0x1234), 100, '', '');
-        startVotingPeriod();
-        vote(forVoter, proposalId, 1);
-        vote(againstVoter, proposalId, 0);
-        endVotingPeriod();
-
-        assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Succeeded);
-    }
-
-    function testQueueRevertsGivenDefeatedProposal() public {
-        NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
-        uint256 proposalId = propose(txs);
-        vm.roll(block.number + daoProxy.votingDelay() + daoProxy.votingPeriod() + 1);
-
-        assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Defeated);
-
-        vm.expectRevert('NounsDAO::queue: proposal can only be queued if it is succeeded');
-        daoProxy.queue(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
-    }
-
-    function testQueueRevertsGivenCanceledProposal() public {
-        NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
-        uint256 proposalId = propose(txs);
-        vm.prank(proposer);
-        daoProxy.cancel(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
-
-        assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Canceled);
-
-        vm.expectRevert('NounsDAO::queue: proposal can only be queued if it is succeeded');
-        daoProxy.queue(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
-    }
-
     function testQueued() public {
         address forVoter = utils.getNextUserAddress();
         address againstVoter = utils.getNextUserAddress();
@@ -126,9 +88,7 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
         vote(forVoter, proposalId, 1);
         vote(againstVoter, proposalId, 0);
         endVotingPeriod();
-
-        // anyone can queue
-        daoProxy.queue(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
+        vm.roll(block.number + 1);
 
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Queued);
     }
@@ -145,9 +105,7 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
         startVotingPeriod();
         vote(forVoter, proposalId, 1);
         vote(againstVoter, proposalId, 0);
-        endVotingPeriod();
-        daoProxy.queue(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
-        vm.warp(block.timestamp + timelock.delay() + timelock.GRACE_PERIOD() + 1);
+        vm.roll(daoProxy.proposalsV3(proposalId).eta + daoProxy.gracePeriod() + 1);
 
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Expired);
     }
@@ -168,20 +126,16 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
         daoProxy.execute(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
 
         endVotingPeriod();
-        vm.expectRevert('NounsDAO::execute: proposal can only be executed if it is queued');
+        vm.expectRevert('NounsDAO::execute: proposal can only be executed at or after ETA');
         daoProxy.execute(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
 
-        daoProxy.queue(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
-        vm.expectRevert("NounsDAOExecutor::executeTransaction: Transaction hasn't surpassed time lock.");
-        daoProxy.execute(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
-
-        vm.warp(block.timestamp + timelock.delay() + 1);
+        vm.roll(daoProxy.proposalsV3(proposalId).eta);
         vm.deal(address(timelock), 100);
         daoProxy.execute(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
 
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Executed);
 
-        vm.warp(block.timestamp + timelock.delay() + timelock.GRACE_PERIOD() + 1);
+        vm.roll(daoProxy.proposalsV3(proposalId).eta + daoProxy.gracePeriod() + 1);
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Executed);
     }
 }

@@ -57,7 +57,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             address[] memory signers,
             uint256[] memory signerPKs,
             uint256[] memory expirationTimestamps,
-            uint256[][] memory tokenIds
+
         ) = signersPKsExpirations();
 
         proposalTxs = makeTxs(makeAddr('target'), 0, '', '');
@@ -648,22 +648,16 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
         dao.updateProposalBySigs(proposalId, sigs, txs.targets, txs.values, txs.signatures, txs.calldatas, '', '');
 
-        // Succeeded
+        // Queued
         vm.prank(_signers[0]);
         dao.castRefundableVote(signer0TokenIds, proposalId, 1);
-        vm.roll(block.number + VOTING_PERIOD);
-        assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Succeeded);
-        vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
-        dao.updateProposalBySigs(proposalId, sigs, txs.targets, txs.values, txs.signatures, txs.calldatas, '', '');
-
-        // Queued
-        dao.queue(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        vm.roll(dao.proposalsV3(proposalId).endBlock + 1);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Queued);
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
         dao.updateProposalBySigs(proposalId, sigs, txs.targets, txs.values, txs.signatures, txs.calldatas, '', '');
 
         // Executed
-        vm.warp(block.timestamp + TIMELOCK_DELAY);
+        vm.roll(dao.proposalsV3(proposalId).eta);
         dao.execute(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Executed);
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -688,7 +682,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         );
 
         vm.prank(proposer);
-        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.cancel(proposalId);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Canceled);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -741,9 +735,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         // dao.castRefundableVote(proposalId, 1);
         vm.prank(_signers[0]);
         dao.castRefundableVote(signer0TokenIds, proposalId, 1);
-        vm.roll(block.number + VOTING_PERIOD);
-        dao.queue(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
-        vm.warp(block.timestamp + TIMELOCK_DELAY + timelock.GRACE_PERIOD());
+        vm.roll(dao.proposalsV3(proposalId).eta + dao.gracePeriod() + 1);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Expired);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -768,7 +760,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         );
 
         vm.prank(vetoer);
-        dao.veto(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.veto(proposalId);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Vetoed);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -827,7 +819,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
 
         // cancel the existing prop proposer has so we don't revert due to this reason
         vm.prank(proposer);
-        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.cancel(proposalId);
 
         // giving proposer enough votes to propose
         vm.startPrank(_signers[_signers.length - 1]);

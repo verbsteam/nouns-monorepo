@@ -172,6 +172,8 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
         NounsDAOAdmin._setLastMinuteWindowInBlocks(daoParams_.lastMinuteWindowInBlocks);
         NounsDAOAdmin._setObjectionPeriodDurationInBlocks(daoParams_.objectionPeriodDurationInBlocks);
         NounsDAOAdmin._setProposalUpdatablePeriodInBlocks(daoParams_.proposalUpdatablePeriodInBlocks);
+        NounsDAOAdmin._setQueuePeriod(daoParams_.queuePeriod);
+        NounsDAOAdmin._setGracePeriod(daoParams_.gracePeriod);
     }
 
     /**
@@ -449,20 +451,6 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
     }
 
     /**
-     * @notice Queues a proposal of state succeeded
-     * @param proposalId The id of the proposal to queue
-     */
-    function queue(
-        uint256 proposalId,
-        address[] memory targets,
-        uint256[] memory values,
-        string[] memory signatures,
-        bytes[] memory calldatas
-    ) external {
-        ds.queue(proposalId, NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas));
-    }
-
-    /**
      * @notice Executes a queued proposal if eta has passed
      * @param proposalId The id of the proposal to execute
      */
@@ -481,14 +469,8 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * dropped below proposal threshold
      * @param proposalId The id of the proposal to cancel
      */
-    function cancel(
-        uint256 proposalId,
-        address[] memory targets,
-        uint256[] memory values,
-        string[] memory signatures,
-        bytes[] memory calldatas
-    ) external {
-        ds.cancel(proposalId, NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas));
+    function cancel(uint256 proposalId) external {
+        ds.cancel(proposalId);
     }
 
     /**
@@ -661,14 +643,8 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      * @notice Vetoes a proposal only if sender is the vetoer and the proposal has not been executed.
      * @param proposalId The id of the proposal to veto
      */
-    function veto(
-        uint256 proposalId,
-        address[] memory targets,
-        uint256[] memory values,
-        string[] memory signatures,
-        bytes[] memory calldatas
-    ) external {
-        ds.veto(proposalId, NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas));
+    function veto(uint256 proposalId) external {
+        ds.veto(proposalId);
     }
 
     /**
@@ -919,6 +895,10 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
 
     function delegationToken() public view returns (address) {
         return ds.delegationToken;
+    }
+
+    function gracePeriod() public view returns (uint32) {
+        return ds.gracePeriod;
     }
 
     receive() external payable {}

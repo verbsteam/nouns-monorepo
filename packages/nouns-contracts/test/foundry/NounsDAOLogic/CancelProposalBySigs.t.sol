@@ -71,14 +71,14 @@ abstract contract IsCancellable is ZeroState {
         vm.expectEmit(true, true, true, true);
         emit ProposalCanceled(proposalId);
         vm.prank(proposer);
-        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.cancel(proposalId);
         assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Canceled));
     }
 
     function test_randoCantCancel() public {
         vm.expectRevert(bytes('NounsDAO::cancel: only proposer or signers can cancel'));
         vm.prank(rando);
-        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.cancel(proposalId);
     }
 }
 
@@ -86,7 +86,7 @@ abstract contract IsNotCancellable is ZeroState {
     function test_proposerCantCancel() public {
         vm.expectRevert(NounsDAOProposals.CantCancelProposalAtFinalState.selector);
         vm.prank(proposer);
-        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.cancel(proposalId);
     }
 }
 
@@ -145,7 +145,7 @@ contract ProposalObjectionPeriodStateTest is ProposalObjectionPeriodState, IsCan
     }
 }
 
-abstract contract ProposalSucceededState is ProposalActiveState {
+abstract contract ProposalQueuedState is ProposalActiveState {
     function setUp() public virtual override {
         super.setUp();
 
@@ -153,21 +153,6 @@ abstract contract ProposalSucceededState is ProposalActiveState {
         dao.castRefundableVote(tokenIds, proposalId, 1);
 
         vm.roll(dao.proposalsV3(proposalId).endBlock + 1);
-        assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Succeeded));
-    }
-}
-
-contract ProposalSucceededStateTest is ProposalSucceededState, IsCancellable {
-    function setUp() public override(ProposalSucceededState, NounsDAOLogicBaseTest) {
-        ProposalSucceededState.setUp();
-    }
-}
-
-abstract contract ProposalQueuedState is ProposalSucceededState {
-    function setUp() public virtual override {
-        super.setUp();
-
-        dao.queue(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Queued));
     }
 }
@@ -182,7 +167,7 @@ abstract contract ProposalExecutedState is ProposalQueuedState {
     function setUp() public virtual override {
         super.setUp();
 
-        vm.warp(dao.proposalsV3(proposalId).eta + 1);
+        vm.roll(dao.proposalsV3(proposalId).eta + 1);
         dao.execute(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Executed));
     }

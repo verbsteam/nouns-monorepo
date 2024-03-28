@@ -63,7 +63,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
 
     function test_givenPropWithSigners_reverts() public {
         vm.startPrank(proposer);
-        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.cancel(proposalId);
 
         (address signer, uint256 signerPK) = makeAddrAndKey('signer');
         nounsToken.transferFrom(proposer, signer, 1);
@@ -118,23 +118,10 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
         vm.prank(proposer);
         dao.updateProposalDescription(proposalId, '', '');
 
-        // Succeeded
+        // Queued
         vm.prank(proposer);
         dao.castRefundableVote(tokenIds, proposalId, 1);
-        vm.roll(block.number + VOTING_PERIOD);
-        assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Succeeded);
-        vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
-        updateProposal(proposer, proposalId, makeAddr('target'), 0, '', '', '');
-
-        vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
-        updateProposalTransactions(proposer, proposalId, makeAddr('target'), 0, '', '', '');
-
-        vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
-        vm.prank(proposer);
-        dao.updateProposalDescription(proposalId, '', '');
-
-        // Queued
-        dao.queue(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        vm.roll(dao.proposalsV3(proposalId).endBlock + 1);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Queued);
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
         updateProposal(proposer, proposalId, makeAddr('target'), 0, '', '', '');
@@ -147,7 +134,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
         dao.updateProposalDescription(proposalId, '', '');
 
         // Executed
-        vm.warp(block.timestamp + TIMELOCK_DELAY);
+        vm.roll(dao.proposalsV3(proposalId).eta);
         dao.execute(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Executed);
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -163,7 +150,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
 
     function test_givenStateCanceled_reverts() public {
         vm.prank(proposer);
-        dao.cancel(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.cancel(proposalId);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Canceled);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -199,9 +186,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
         vm.roll(block.number + proposalUpdatablePeriodInBlocks + VOTING_DELAY);
         vm.prank(proposer);
         dao.castRefundableVote(tokenIds, proposalId, 1);
-        vm.roll(block.number + VOTING_PERIOD);
-        dao.queue(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
-        vm.warp(block.timestamp + TIMELOCK_DELAY + timelock.GRACE_PERIOD());
+        vm.roll(dao.proposalsV3(proposalId).eta + dao.gracePeriod() + 1);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Expired);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -217,7 +202,7 @@ contract UpdateProposalPermissionsTest is UpdateProposalBaseTest {
 
     function test_givenStateVetoed_reverts() public {
         vm.prank(vetoer);
-        dao.veto(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
+        dao.veto(proposalId);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Vetoed);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));

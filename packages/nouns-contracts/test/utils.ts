@@ -366,20 +366,8 @@ export const deployGovernorV3 = async (deployer: SignerWithAddress): Promise<Nou
 
   // const NounsDAOVotes = await (await ethers.getContractFactory('NounsDAOVotes', deployer)).deploy();
 
-  const NounsDAOVotes = await new NounsDAOVotes__factory(
-    {
-      'contracts/governance/NounsDAODelegation.sol:NounsDAODelegation': NounsDAODelegation.address,
-    },
-    deployer,
-  ).deploy();
-
-  const NounsDAOProposals = await new NounsDAOProposals__factory(
-    {
-      'contracts/governance/NounsDAODelegation.sol:NounsDAODelegation': NounsDAODelegation.address,
-    },
-    deployer,
-  ).deploy();
-
+  const NounsDAOVotes = await new NounsDAOVotes__factory(deployer).deploy();
+  const NounsDAOProposals = await new NounsDAOProposals__factory(deployer).deploy();
   const NounsDAOAdmin = await (await ethers.getContractFactory('NounsDAOAdmin', deployer)).deploy();
   const NounsDAOFork = await (await ethers.getContractFactory('NounsDAOFork', deployer)).deploy();
   const NounsDAODynamicQuorum = await (
@@ -394,7 +382,6 @@ export const deployGovernorV3 = async (deployer: SignerWithAddress): Promise<Nou
       'contracts/governance/NounsDAOVotes.sol:NounsDAOVotes': NounsDAOVotes.address,
       'contracts/governance/NounsDAODynamicQuorum.sol:NounsDAODynamicQuorum':
         NounsDAODynamicQuorum.address,
-      'contracts/governance/NounsDAODelegation.sol:NounsDAODelegation': NounsDAODelegation.address,
     },
     deployer,
   ).deploy();
@@ -448,6 +435,8 @@ export const deployGovernorV3WithV3Proxy = async (
       lastMinuteWindowInBlocks: 0,
       objectionPeriodDurationInBlocks: 0,
       proposalUpdatablePeriodInBlocks: 0,
+      queuePeriod: 7200,
+      gracePeriod: 7200 * 14,
     },
     dynamicQuorumParams || {
       minQuorumVotesBPS: MIN_QUORUM_VOTES_BPS,

@@ -37,11 +37,6 @@ contract NounsDAOExecutorTest is NounsDAOExecutor {
 }
 
 contract NounsDAOExecutorV2Test is NounsDAOExecutorV2 {
-    function initialize(address admin_, uint256 delay_) public override {
-        super.initialize(admin_, 2 days);
-        delay = delay_;
-    }
-
     function harnessSetAdmin(address admin_) public {
         require(msg.sender == admin);
         admin = admin_;

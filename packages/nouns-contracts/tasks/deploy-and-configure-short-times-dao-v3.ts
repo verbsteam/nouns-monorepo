@@ -73,6 +73,8 @@ task(
     0,
     types.int,
   )
+  .addOptionalParam('queuePeriodBlocks', 'The queue period (blocks)', 10, types.int)
+  .addOptionalParam('gracePeriodBlocks', 'The grace period (blocks)', 100_800, types.int)
   .setAction(async (args, { run }) => {
     // Deploy the Nouns DAO contracts and return deployment information
     const contracts = await run('deploy-short-times-dao-v3', args);

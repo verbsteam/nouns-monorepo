@@ -14,7 +14,7 @@ contract InitializersLocked is Test {
     function test_NounsDAOExecutorV2_locks_initializer() public {
         NounsDAOExecutorV2 c = new NounsDAOExecutorV2();
         vm.expectRevert('Initializable: contract is already initialized');
-        c.initialize(address(0), 3 days);
+        c.initialize(address(0));
     }
 
     function test_NounsDAOData_locks_initializer() public {

@@ -194,7 +194,6 @@ library NounsDAOProposals {
 
         (temp.votes, temp.signers) = verifySignersCanBackThisProposalAndCountTheirVotes(
             ds,
-            tokenIds,
             proposerSignatures,
             txs,
             description
@@ -404,47 +403,6 @@ library NounsDAOProposals {
     }
 
     /**
-     * @notice Queues a proposal of state succeeded
-     * @param proposalId The id of the proposal to queue
-     */
-    function queue(
-        NounsDAOTypes.Storage storage ds,
-        uint256 proposalId,
-        NounsDAOProposals.ProposalTxs memory txs
-    ) external {
-        require(
-            stateInternal(ds, proposalId) == NounsDAOTypes.ProposalState.Succeeded,
-            'NounsDAO::queue: proposal can only be queued if it is succeeded'
-        );
-        NounsDAOTypes.Proposal storage proposal = ds._proposals[proposalId];
-
-        require(proposal.txsHash == hashProposal(txs), 'txs hash does not match proposal.txsHash');
-
-        INounsDAOExecutor timelock = getProposalTimelock(ds, proposal);
-        uint256 eta = block.timestamp + timelock.delay();
-        for (uint256 i = 0; i < txs.targets.length; i++) {
-            queueOrRevertInternal(timelock, txs.targets[i], txs.values[i], txs.signatures[i], txs.calldatas[i], eta);
-        }
-        proposal.eta = eta;
-        emit NounsDAOEventsV3.ProposalQueued(proposalId, eta);
-    }
-
-    function queueOrRevertInternal(
-        INounsDAOExecutor timelock,
-        address target,
-        uint256 value,
-        string memory signature,
-        bytes memory data,
-        uint256 eta
-    ) internal {
-        require(
-            !timelock.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))),
-            'NounsDAO::queueOrRevertInternal: identical proposal action already queued at eta'
-        );
-        timelock.queueTransaction(target, value, signature, data, eta);
-    }
-
-    /**
      * @notice Executes a queued proposal if eta has passed
      * @param proposalId The id of the proposal to execute
      */
@@ -470,6 +428,7 @@ library NounsDAOProposals {
         );
         if (ds.isForkPeriodActive()) revert CannotExecuteDuringForkingPeriod();
         require(proposal.txsHash == hashProposal(txs), 'txs hash does not match proposal.txsHash');
+        require(block.number >= proposal.eta, 'NounsDAO::execute: proposal can only be executed at or after ETA');
 
         proposal.executed = true;
 
@@ -500,11 +459,7 @@ library NounsDAOProposals {
      * @notice Vetoes a proposal only if sender is the vetoer and the proposal has not been executed.
      * @param proposalId The id of the proposal to veto
      */
-    function veto(
-        NounsDAOTypes.Storage storage ds,
-        uint256 proposalId,
-        NounsDAOProposals.ProposalTxs memory txs
-    ) external {
+    function veto(NounsDAOTypes.Storage storage ds, uint256 proposalId) external {
         if (ds.vetoer == address(0)) {
             revert VetoerBurned();
         }
@@ -518,19 +473,7 @@ library NounsDAOProposals {
         }
 
         NounsDAOTypes.Proposal storage proposal = ds._proposals[proposalId];
-        require(proposal.txsHash == hashProposal(txs), 'txs hash does not match proposal.txsHash');
-
         proposal.vetoed = true;
-        INounsDAOExecutor timelock = getProposalTimelock(ds, proposal);
-        for (uint256 i = 0; i < txs.targets.length; i++) {
-            timelock.cancelTransaction(
-                txs.targets[i],
-                txs.values[i],
-                txs.signatures[i],
-                txs.calldatas[i],
-                proposal.eta
-            );
-        }
 
         emit NounsDAOEventsV3.ProposalVetoed(proposalId);
     }
@@ -540,11 +483,7 @@ library NounsDAOProposals {
      * dropped below proposal threshold
      * @param proposalId The id of the proposal to cancel
      */
-    function cancel(
-        NounsDAOTypes.Storage storage ds,
-        uint256 proposalId,
-        NounsDAOProposals.ProposalTxs memory txs
-    ) external {
+    function cancel(NounsDAOTypes.Storage storage ds, uint256 proposalId) external {
         NounsDAOTypes.ProposalState proposalState = stateInternal(ds, proposalId);
         if (
             proposalState == NounsDAOTypes.ProposalState.Canceled ||
@@ -568,19 +507,8 @@ library NounsDAOProposals {
             }
         }
         require(msgSenderIsProposerOrSigner, 'NounsDAO::cancel: only proposer or signers can cancel');
-        require(proposal.txsHash == hashProposal(txs), 'txs hash does not match proposal.txsHash');
 
         proposal.canceled = true;
-        INounsDAOExecutor timelock = getProposalTimelock(ds, proposal);
-        for (uint256 i = 0; i < txs.targets.length; i++) {
-            timelock.cancelTransaction(
-                txs.targets[i],
-                txs.values[i],
-                txs.signatures[i],
-                txs.calldatas[i],
-                proposal.eta
-            );
-        }
 
         emit NounsDAOEventsV3.ProposalCanceled(proposalId);
     }
@@ -630,7 +558,7 @@ library NounsDAOProposals {
             return NounsDAOTypes.ProposalState.Succeeded;
         } else if (proposal.executed) {
             return NounsDAOTypes.ProposalState.Executed;
-        } else if (block.timestamp >= proposal.eta + getProposalTimelock(ds, proposal).GRACE_PERIOD()) {
+        } else if (block.number >= proposal.eta + ds.gracePeriod) {
             return NounsDAOTypes.ProposalState.Expired;
         } else {
             return NounsDAOTypes.ProposalState.Queued;
@@ -778,12 +706,10 @@ library NounsDAOProposals {
      */
     function verifySignersCanBackThisProposalAndCountTheirVotes(
         NounsDAOTypes.Storage storage ds,
-        uint256[] calldata tokenIds,
         NounsDAOTypes.ProposerSignature[] memory proposerSignatures,
         ProposalTxs memory txs,
         string memory description
-    ) internal returns (uint256 votes, address[] memory signers) {
-        NounsTokenLike nouns = ds.nouns;
+    ) internal view returns (uint256 votes, address[] memory signers) {
         bytes memory proposalEncodeData = calcProposalEncodeData(msg.sender, txs, description);
 
         signers = new address[](proposerSignatures.length);
@@ -860,6 +786,7 @@ library NounsDAOProposals {
         uint64 updatePeriodEndBlock = SafeCast.toUint64(block.number + ds.proposalUpdatablePeriodInBlocks);
         uint256 startBlock = updatePeriodEndBlock + ds.votingDelay;
         uint256 endBlock = startBlock + ds.votingPeriod;
+        uint32 eta = uint32(endBlock) + ds.queuePeriod;
 
         newProposal = ds._proposals[proposalId];
         newProposal.id = proposalId;
@@ -873,6 +800,9 @@ library NounsDAOProposals {
         newProposal.creationTimestamp = uint32(block.timestamp);
         newProposal.updatePeriodEndBlock = updatePeriodEndBlock;
         newProposal.txsHash = hashProposal(txs);
+        // In this version ETA changes from timestamp to block number
+        // Until we possibly change all proposal times from blocks to timestamps
+        newProposal.eta = eta;
     }
 
     function emitNewPropEvents(

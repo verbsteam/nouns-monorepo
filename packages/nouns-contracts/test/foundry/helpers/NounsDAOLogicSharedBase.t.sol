@@ -2,13 +2,14 @@
 pragma solidity ^0.8.15;
 
 import 'forge-std/Test.sol';
+import { ERC1967Proxy } from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 import { INounsDAOLogic } from '../../../contracts/interfaces/INounsDAOLogic.sol';
 import { NounsDescriptorV2 } from '../../../contracts/NounsDescriptorV2.sol';
 import { DeployUtilsFork } from './DeployUtilsFork.sol';
 import { NounsToken } from '../../../contracts/NounsToken.sol';
 import { NounsSeeder } from '../../../contracts/NounsSeeder.sol';
 import { IProxyRegistry } from '../../../contracts/external/opensea/IProxyRegistry.sol';
-import { NounsDAOExecutor } from '../../../contracts/governance/NounsDAOExecutor.sol';
+import { NounsDAOExecutorV2 } from '../../../contracts/governance/NounsDAOExecutorV2.sol';
 import { INounsTokenForkLike } from '../../../contracts/governance/fork/newdao/governance/INounsTokenForkLike.sol';
 import { Utils } from './Utils.sol';
 import { NounsTokenLike } from '../../../contracts/governance/NounsDAOInterfaces.sol';
@@ -24,7 +25,7 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
 
     INounsDAOLogic daoProxy;
     NounsToken nounsToken;
-    NounsDAOExecutor timelock = new NounsDAOExecutor(address(1), TIMELOCK_DELAY);
+    NounsDAOExecutorV2 timelock;
     address vetoer = address(0x3);
     address admin = address(0x4);
     address noundersDAO = address(0x5);
@@ -36,6 +37,9 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
     Utils utils;
 
     function setUp() public virtual {
+        timelock = NounsDAOExecutorV2(payable(address(new ERC1967Proxy(address(new NounsDAOExecutorV2()), ''))));
+        timelock.initialize(address(1));
+
         NounsDescriptorV2 descriptor = _deployAndPopulateV2();
         nounsToken = new NounsToken(noundersDAO, minter, descriptor, new NounsSeeder(), IProxyRegistry(address(0)));
 
@@ -64,7 +68,7 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
         uint256 value,
         string memory signature,
         bytes memory data
-    ) internal returns (NounsDAOProposals.ProposalTxs memory txs) {
+    ) internal pure returns (NounsDAOProposals.ProposalTxs memory txs) {
         txs.targets = new address[](1);
         txs.targets[0] = target;
         txs.values = new uint256[](1);
@@ -175,7 +179,7 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
 
     function deployForkDAOProxy() internal returns (INounsDAOLogic) {
         (address treasuryAddress, address tokenAddress, address daoAddress) = _deployForkDAO();
-        timelock = NounsDAOExecutor(payable(treasuryAddress));
+        timelock = NounsDAOExecutorV2(payable(treasuryAddress));
         nounsToken = NounsToken(tokenAddress);
         minter = nounsToken.minter();
 

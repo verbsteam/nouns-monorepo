@@ -424,8 +424,13 @@ interface NounsDAOTypes {
         uint256 forkThresholdBPS;
         /// @notice Address of the original timelock
         INounsDAOExecutor timelockV1;
+        // ================ Nouns Gov ================ //
         address delegationToken;
         mapping(uint256 proposalId => BitMaps.BitMap) votingReceipts;
+        /// @notice The duration of a proposal's queued state, in blocks
+        uint32 queuePeriod;
+        /// @notice The period between when a proposal is queued and when it expires, in blocks
+        uint32 gracePeriod;
     }
 
     struct Proposal {
@@ -634,6 +639,8 @@ interface NounsDAOTypes {
         uint32 lastMinuteWindowInBlocks;
         uint32 objectionPeriodDurationInBlocks;
         uint32 proposalUpdatablePeriodInBlocks;
+        uint32 queuePeriod;
+        uint32 gracePeriod;
     }
 
     /// @notice A checkpoint for storing dynamic quorum params from a given block

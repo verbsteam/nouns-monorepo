@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.19;
 
-import { NounsDAOExecutorV2 } from '../../../NounsDAOExecutorV2.sol';
+import { NounsDAOExecutorForkV2 } from './NounsDAOExecutorForkV2.sol';
 import { INounsTokenForkLike } from './INounsTokenForkLike.sol';
 
 /**
@@ -40,7 +40,7 @@ contract NounsDAOStorageV1Fork {
     uint256 public proposalCount;
 
     /// @notice The address of the Nouns DAO Executor NounsDAOExecutor
-    NounsDAOExecutorV2 public timelock;
+    NounsDAOExecutorForkV2 public timelock;
 
     /// @notice The address of the Nouns tokens
     INounsTokenForkLike public nouns;
