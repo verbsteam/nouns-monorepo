@@ -8,7 +8,7 @@ import { DeployUtils } from '../helpers/DeployUtils.sol';
 import { SigUtils, ERC1271Stub } from '../helpers/SigUtils.sol';
 import { NounsDAOProposals } from '../../../contracts/governance/NounsDAOProposals.sol';
 import { NounsDAOProxyV3 } from '../../../contracts/governance/NounsDAOProxyV3.sol';
-import { NounsDAOTypes } from '../../../contracts/governance/NounsDAOInterfaces.sol';
+import { NounsDAOTypes, NounsDAOEventsV3 } from '../../../contracts/governance/NounsDAOInterfaces.sol';
 import { NounsToken } from '../../../contracts/NounsToken.sol';
 import { NounsSeeder } from '../../../contracts/NounsSeeder.sol';
 import { IProxyRegistry } from '../../../contracts/external/opensea/IProxyRegistry.sol';
@@ -27,6 +27,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
 
     uint256 defaultExpirationTimestamp;
     uint256 proposalId;
+    NounsDAOProposals.ProposalTxs proposalTxs;
 
     function setUp() public override {
         super.setUp();
@@ -56,17 +57,11 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             address[] memory signers,
             uint256[] memory signerPKs,
             uint256[] memory expirationTimestamps,
-            uint256[][] memory tokenIds
+
         ) = signersPKsExpirations();
 
-        proposalId = proposeBySigs(
-            proposer,
-            signers,
-            signerPKs,
-            expirationTimestamps,
-            makeTxs(makeAddr('target'), 0, '', ''),
-            ''
-        );
+        proposalTxs = makeTxs(makeAddr('target'), 0, '', '');
+        proposalId = proposeBySigs(proposer, signers, signerPKs, expirationTimestamps, proposalTxs, '');
         vm.roll(block.number + 1);
     }
 
@@ -653,25 +648,17 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
         dao.updateProposalBySigs(proposalId, sigs, txs.targets, txs.values, txs.signatures, txs.calldatas, '', '');
 
-        // Succeeded
-        // vm.prank(proposer);
-        // dao.castRefundableVote(proposalId, 1);
+        // Queued
         vm.prank(_signers[0]);
         dao.castRefundableVote(signer0TokenIds, proposalId, 1);
-        vm.roll(block.number + VOTING_PERIOD);
-        assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Succeeded);
-        vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
-        dao.updateProposalBySigs(proposalId, sigs, txs.targets, txs.values, txs.signatures, txs.calldatas, '', '');
-
-        // Queued
-        dao.queue(proposalId);
+        vm.roll(dao.proposalsV3(proposalId).endBlock + 1);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Queued);
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
         dao.updateProposalBySigs(proposalId, sigs, txs.targets, txs.values, txs.signatures, txs.calldatas, '', '');
 
         // Executed
-        vm.warp(block.timestamp + TIMELOCK_DELAY);
-        dao.execute(proposalId);
+        vm.roll(dao.proposalsV3(proposalId).eta);
+        dao.execute(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Executed);
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
         dao.updateProposalBySigs(proposalId, sigs, txs.targets, txs.values, txs.signatures, txs.calldatas, '', '');
@@ -748,9 +735,7 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
         // dao.castRefundableVote(proposalId, 1);
         vm.prank(_signers[0]);
         dao.castRefundableVote(signer0TokenIds, proposalId, 1);
-        vm.roll(block.number + VOTING_PERIOD);
-        dao.queue(proposalId);
-        vm.warp(block.timestamp + TIMELOCK_DELAY + timelock.GRACE_PERIOD());
+        vm.roll(dao.proposalsV3(proposalId).eta + dao.gracePeriod() + 1);
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Expired);
 
         vm.expectRevert(abi.encodeWithSelector(NounsDAOProposals.CanOnlyEditUpdatableProposals.selector));
@@ -871,25 +856,18 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             address(dao)
         );
         assertTrue(dao.state(proposalId) == NounsDAOTypes.ProposalState.Updatable);
-        (
-            address[] memory targetsBefore,
-            uint256[] memory valuesBefore,
-            string[] memory signaturesBefore,
-            bytes[] memory calldatasBefore
-        ) = dao.getActions(proposalId);
-        assertEq(targetsBefore[0], makeAddr('target'));
-        assertEq(valuesBefore[0], 0);
-        assertEq(signaturesBefore[0], '');
-        assertEq(calldatasBefore[0], '');
+        bytes32 txsHashBefore = dao.proposalsV3(proposalId).txsHash;
+        bytes32 expectedHashAfter = NounsDAOProposals.hashProposal(txs);
 
         vm.expectEmit(true, true, true, true);
-        emit ProposalUpdated(
+        emit NounsDAOEventsV3.ProposalUpdated(
             proposalId,
             proposer,
             txs.targets,
             txs.values,
             txs.signatures,
             txs.calldatas,
+            expectedHashAfter,
             'descriptionAfter',
             'some update message'
         );
@@ -906,16 +884,10 @@ contract UpdateProposalBySigsTest is NounsDAOLogicBaseTest {
             'some update message'
         );
 
-        (
-            address[] memory targetsAfter,
-            uint256[] memory valuesAfter,
-            string[] memory signaturesAfter,
-            bytes[] memory calldatasAfter
-        ) = dao.getActions(proposalId);
-        assertEq(targetsAfter[0], makeAddr('new target'));
-        assertEq(valuesAfter[0], 1);
-        assertEq(signaturesAfter[0], 'new signature');
-        assertEq(calldatasAfter[0], 'new calldata');
+        bytes32 txsHashAfter = dao.proposalsV3(proposalId).txsHash;
+
+        assertNotEq(txsHashBefore, txsHashAfter);
+        assertEq(txsHashAfter, expectedHashAfter);
     }
 
     function signersPKsExpirations(

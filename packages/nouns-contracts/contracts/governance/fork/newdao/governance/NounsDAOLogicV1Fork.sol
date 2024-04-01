@@ -97,7 +97,7 @@ pragma solidity ^0.8.19;
 import { UUPSUpgradeable } from '@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol';
 import { NounsDAOEventsFork } from './NounsDAOEventsFork.sol';
 import { NounsDAOStorageV1Fork } from './NounsDAOStorageV1Fork.sol';
-import { NounsDAOExecutorV2 } from '../../../NounsDAOExecutorV2.sol';
+import { NounsDAOExecutorForkV2 } from './NounsDAOExecutorForkV2.sol';
 import { INounsTokenForkLike } from './INounsTokenForkLike.sol';
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import { ReentrancyGuardUpgradeable } from '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
@@ -185,7 +185,7 @@ contract NounsDAOLogicV1Fork is UUPSUpgradeable, ReentrancyGuardUpgradeable, Nou
         emit QuorumVotesBPSSet(quorumVotesBPS, quorumVotesBPS_);
 
         admin = timelock_;
-        timelock = NounsDAOExecutorV2(payable(timelock_));
+        timelock = NounsDAOExecutorForkV2(payable(timelock_));
         nouns = INounsTokenForkLike(nouns_);
         votingPeriod = votingPeriod_;
         votingDelay = votingDelay_;
@@ -484,7 +484,9 @@ contract NounsDAOLogicV1Fork is UUPSUpgradeable, ReentrancyGuardUpgradeable, Nou
      * @return signatures
      * @return calldatas
      */
-    function getActions(uint256 proposalId)
+    function getActions(
+        uint256 proposalId
+    )
         external
         view
         returns (
@@ -577,11 +579,7 @@ contract NounsDAOLogicV1Fork is UUPSUpgradeable, ReentrancyGuardUpgradeable, Nou
      * @param support The support value for the vote. 0=against, 1=for, 2=abstain
      * @param reason The reason given for the vote by the voter
      */
-    function castVoteWithReason(
-        uint256 proposalId,
-        uint8 support,
-        string calldata reason
-    ) external {
+    function castVoteWithReason(uint256 proposalId, uint8 support, string calldata reason) external {
         emit VoteCast(msg.sender, proposalId, support, castVoteInternal(msg.sender, proposalId, support), reason);
     }
 
@@ -589,13 +587,7 @@ contract NounsDAOLogicV1Fork is UUPSUpgradeable, ReentrancyGuardUpgradeable, Nou
      * @notice Cast a vote for a proposal by signature
      * @dev External function that accepts EIP-712 signatures for voting on proposals.
      */
-    function castVoteBySig(
-        uint256 proposalId,
-        uint8 support,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external {
+    function castVoteBySig(uint256 proposalId, uint8 support, uint8 v, bytes32 r, bytes32 s) external {
         bytes32 domainSeparator = keccak256(
             abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), block.chainid, address(this))
         );
@@ -613,11 +605,7 @@ contract NounsDAOLogicV1Fork is UUPSUpgradeable, ReentrancyGuardUpgradeable, Nou
      * @param support The support value for the vote. 0=against, 1=for, 2=abstain
      * @return The number of votes cast
      */
-    function castVoteInternal(
-        address voter,
-        uint256 proposalId,
-        uint8 support
-    ) internal returns (uint96) {
+    function castVoteInternal(address voter, uint256 proposalId, uint8 support) internal returns (uint96) {
         require(state(proposalId) == ProposalState.Active, 'NounsDAO::castVoteInternal: voting is closed');
         require(support <= 2, 'NounsDAO::castVoteInternal: invalid vote type');
         Proposal storage proposal = _proposals[proposalId];

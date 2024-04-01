@@ -172,6 +172,8 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
         NounsDAOAdmin._setLastMinuteWindowInBlocks(daoParams_.lastMinuteWindowInBlocks);
         NounsDAOAdmin._setObjectionPeriodDurationInBlocks(daoParams_.objectionPeriodDurationInBlocks);
         NounsDAOAdmin._setProposalUpdatablePeriodInBlocks(daoParams_.proposalUpdatablePeriodInBlocks);
+        NounsDAOAdmin._setQueuePeriod(daoParams_.queuePeriod);
+        NounsDAOAdmin._setGracePeriod(daoParams_.gracePeriod);
     }
 
     /**
@@ -449,19 +451,17 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
     }
 
     /**
-     * @notice Queues a proposal of state succeeded
-     * @param proposalId The id of the proposal to queue
-     */
-    function queue(uint256 proposalId) external {
-        ds.queue(proposalId);
-    }
-
-    /**
      * @notice Executes a queued proposal if eta has passed
      * @param proposalId The id of the proposal to execute
      */
-    function execute(uint256 proposalId) external {
-        ds.execute(proposalId);
+    function execute(
+        uint256 proposalId,
+        address[] memory targets,
+        uint256[] memory values,
+        string[] memory signatures,
+        bytes[] memory calldatas
+    ) external {
+        ds.execute(proposalId, NounsDAOProposals.ProposalTxs(targets, values, signatures, calldatas));
     }
 
     /**
@@ -480,29 +480,6 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
      */
     function state(uint256 proposalId) public view returns (ProposalState) {
         return ds.state(proposalId);
-    }
-
-    /**
-     * @notice Gets actions of a proposal
-     * @param proposalId the id of the proposal
-     * @return targets
-     * @return values
-     * @return signatures
-     * @return calldatas
-     */
-    function getActions(
-        uint256 proposalId
-    )
-        external
-        view
-        returns (
-            address[] memory targets,
-            uint256[] memory values,
-            string[] memory signatures,
-            bytes[] memory calldatas
-        )
-    {
-        return ds.getActions(proposalId);
     }
 
     /**
@@ -918,6 +895,10 @@ contract NounsDAOLogicV4 is NounsDAOStorage, NounsDAOEventsV3 {
 
     function delegationToken() public view returns (address) {
         return ds.delegationToken;
+    }
+
+    function gracePeriod() public view returns (uint32) {
+        return ds.gracePeriod;
     }
 
     receive() external payable {}

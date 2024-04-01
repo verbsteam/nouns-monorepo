@@ -21,7 +21,6 @@ import { ERC1967Proxy } from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { IForkDAODeployer, INounsDAOForkEscrow, NounsDAOTypes } from '../NounsDAOInterfaces.sol';
 import { NounsTokenFork } from './newdao/token/NounsTokenFork.sol';
 import { NounsAuctionHouseFork } from './newdao/NounsAuctionHouseFork.sol';
-import { NounsDAOExecutorV2 } from '../NounsDAOExecutorV2.sol';
 import { NounsDAOLogicV1Fork } from './newdao/governance/NounsDAOLogicV1Fork.sol';
 import { NounsToken } from '../../NounsToken.sol';
 import { NounsAuctionHouse } from '../../NounsAuctionHouse.sol';
@@ -30,8 +29,16 @@ interface INounsDAOForkTokens {
     function erc20TokensToIncludeInFork() external view returns (address[] memory);
 }
 
+interface INounsDAOExecutor {
+    function initialize(address admin, uint256 delay) external;
+
+    function admin() external view returns (address);
+}
+
 contract ForkDAODeployer is IForkDAODeployer {
     event DAODeployed(address token, address auction, address governor, address treasury);
+
+    uint256 public constant TIMELOCK_DELAY = 2 days;
 
     /// @notice The token implementation address
     address public immutable tokenImpl;
@@ -101,7 +108,7 @@ contract ForkDAODeployer is IForkDAODeployer {
         treasury = address(new ERC1967Proxy(treasuryImpl, ''));
 
         NounsAuctionHouse originalAuction = getOriginalAuction(forkEscrow);
-        NounsDAOExecutorV2 originalTimelock = getOriginalTimelock(forkEscrow);
+        INounsDAOExecutor originalTimelock = getOriginalTimelock(forkEscrow);
 
         NounsTokenFork(token).initialize(
             treasury,
@@ -125,7 +132,7 @@ contract ForkDAODeployer is IForkDAODeployer {
 
         initDAO(governor, treasury, token, originalTimelock);
 
-        NounsDAOExecutorV2(payable(treasury)).initialize(governor, originalTimelock.delay());
+        INounsDAOExecutor(payable(treasury)).initialize(governor, TIMELOCK_DELAY);
 
         emit DAODeployed(token, auction, governor, treasury);
     }
@@ -133,7 +140,7 @@ contract ForkDAODeployer is IForkDAODeployer {
     /**
      * @dev Used to prevent the 'Stack too deep' error in the main deploy function.
      */
-    function initDAO(address governor, address treasury, address token, NounsDAOExecutorV2 originalTimelock) internal {
+    function initDAO(address governor, address treasury, address token, INounsDAOExecutor originalTimelock) internal {
         INounsDAOForkTokens originalDAO = INounsDAOForkTokens(payable(originalTimelock.admin()));
         NounsDAOLogicV1Fork(governor).initialize(
             treasury,
@@ -150,9 +157,9 @@ contract ForkDAODeployer is IForkDAODeployer {
     /**
      * @dev Used to prevent the 'Stack too deep' error in the main deploy function.
      */
-    function getOriginalTimelock(INounsDAOForkEscrow forkEscrow) internal view returns (NounsDAOExecutorV2) {
+    function getOriginalTimelock(INounsDAOForkEscrow forkEscrow) internal view returns (INounsDAOExecutor) {
         NounsToken originalToken = NounsToken(address(forkEscrow.nounsToken()));
-        return NounsDAOExecutorV2(payable(originalToken.owner()));
+        return INounsDAOExecutor(originalToken.owner());
     }
 
     /**

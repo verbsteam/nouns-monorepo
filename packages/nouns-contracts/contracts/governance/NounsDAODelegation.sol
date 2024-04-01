@@ -21,12 +21,8 @@ import './NounsDAOInterfaces.sol';
 import { NounDelegationToken } from './NounDelegationToken.sol';
 
 library NounsDAODelegation {
-    function isDelegate(address account, uint256[] memory tokenIds) external view returns (bool) {
+    function isDelegate(address account, uint256[] memory tokenIds) internal view returns (bool) {
         NounDelegationToken dt = NounDelegationToken(ds().delegationToken);
-        require(
-            dt.lastTransferTimestamp(account) < block.timestamp,
-            'cannot use voting power updated in the current block'
-        );
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
             if (delegateOf(tokenIds[i], dt) != account) {
@@ -36,8 +32,12 @@ library NounsDAODelegation {
         return true;
     }
 
-    function delegateOf(uint256 tokenId, NounDelegationToken dt) public view returns (address) {
+    function delegateOf(uint256 tokenId, NounDelegationToken dt) internal view returns (address) {
         address delegationOwner = dt.ownerOfNoRevert(tokenId);
+        require(
+            dt.getTokenLastTransfer(tokenId) < block.timestamp,
+            'cannot use voting power updated in the current block'
+        );
         if (delegationOwner != address(0)) return delegationOwner;
 
         NounsTokenLike nouns = ds().nouns;

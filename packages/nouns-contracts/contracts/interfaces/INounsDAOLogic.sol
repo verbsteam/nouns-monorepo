@@ -196,16 +196,16 @@ interface INounsDAOLogic {
     ) external;
 
     /**
-     * @notice Queues a proposal of state succeeded
-     * @param proposalId The id of the proposal to queue
-     */
-    function queue(uint256 proposalId) external;
-
-    /**
      * @notice Executes a queued proposal if eta has passed
      * @param proposalId The id of the proposal to execute
      */
-    function execute(uint256 proposalId) external;
+    function execute(
+        uint256 proposalId,
+        address[] memory targets,
+        uint256[] memory values,
+        string[] memory signatures,
+        bytes[] memory calldatas
+    ) external;
 
     /**
      * @notice Cancels a proposal only if sender is the proposer or a signer, or proposer & signers voting power
@@ -220,26 +220,6 @@ interface INounsDAOLogic {
      * @return Proposal state
      */
     function state(uint256 proposalId) external view returns (NounsDAOTypes.ProposalState);
-
-    /**
-     * @notice Gets actions of a proposal
-     * @param proposalId the id of the proposal
-     * @return targets
-     * @return values
-     * @return signatures
-     * @return calldatas
-     */
-    function getActions(
-        uint256 proposalId
-    )
-        external
-        view
-        returns (
-            address[] memory targets,
-            uint256[] memory values,
-            string[] memory signatures,
-            bytes[] memory calldatas
-        );
 
     /**
      * @notice Gets the receipt for a voter on a given proposal
@@ -447,6 +427,10 @@ interface INounsDAOLogic {
      * @param newAdmin the new admin address
      */
     function _setTimelocksAndAdmin(address newTimelock, address newTimelockV1, address newAdmin) external;
+
+    function _setQueuePeriod(uint32 newQueuePeriod) external;
+
+    function _setGracePeriod(uint32 newGracePeriod) external;
 
     /**
      * ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
@@ -689,4 +673,6 @@ interface INounsDAOLogic {
     function timelockV1() external view returns (address);
 
     function delegationToken() external view returns (address);
+
+    function gracePeriod() external view returns (uint32);
 }

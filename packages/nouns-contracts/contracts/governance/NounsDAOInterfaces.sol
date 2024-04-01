@@ -140,7 +140,8 @@ interface NounsDAOEventsV3 {
         uint256 updatePeriodEndBlock,
         uint256 proposalThreshold,
         uint256 quorumVotes,
-        uint32 indexed clientId
+        uint32 indexed clientId,
+        bytes32 txsHash
     );
 
     /// @notice Emitted when a proposal is created to be executed on timelockV1
@@ -154,6 +155,7 @@ interface NounsDAOEventsV3 {
         uint256[] values,
         string[] signatures,
         bytes[] calldatas,
+        bytes32 txsHash,
         string description,
         string updateMessage
     );
@@ -166,6 +168,7 @@ interface NounsDAOEventsV3 {
         uint256[] values,
         string[] signatures,
         bytes[] calldatas,
+        bytes32 txsHash,
         string updateMessage
     );
 
@@ -421,8 +424,13 @@ interface NounsDAOTypes {
         uint256 forkThresholdBPS;
         /// @notice Address of the original timelock
         INounsDAOExecutor timelockV1;
+        // ================ Nouns Gov ================ //
         address delegationToken;
         mapping(uint256 proposalId => BitMaps.BitMap) votingReceipts;
+        /// @notice The duration of a proposal's queued state, in blocks
+        uint32 queuePeriod;
+        /// @notice The period between when a proposal is queued and when it expires, in blocks
+        uint32 gracePeriod;
     }
 
     struct Proposal {
@@ -484,6 +492,8 @@ interface NounsDAOTypes {
         bool executeOnTimelockV1;
         /// @notice How many votes and vote transactions each clientId contributed to this proposal
         mapping(uint32 => ClientVoteData) voteClients;
+        /// @notice The hash of the proposal's transactions
+        bytes32 txsHash;
     }
 
     struct ClientVoteData {
@@ -575,6 +585,8 @@ interface NounsDAOTypes {
         uint256 objectionPeriodEndBlock;
         /// @notice When true, a proposal would be executed on timelockV1 instead of the current timelock
         bool executeOnTimelockV1;
+        /// @notice The hash of the proposal's transactions
+        bytes32 txsHash;
     }
 
     struct ProposalCondensedV2 {
@@ -627,6 +639,8 @@ interface NounsDAOTypes {
         uint32 lastMinuteWindowInBlocks;
         uint32 objectionPeriodDurationInBlocks;
         uint32 proposalUpdatablePeriodInBlocks;
+        uint32 queuePeriod;
+        uint32 gracePeriod;
     }
 
     /// @notice A checkpoint for storing dynamic quorum params from a given block

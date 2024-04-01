@@ -17,12 +17,16 @@ library DelegationHelpers {
         uint256 delegationBalance = dt.balanceOf(user);
 
         tokenIds = new uint256[](nounBalance + delegationBalance);
-        for (uint256 i = 0; i < nounBalance; i++) {
+        uint256 i = 0;
+        for (; i < nounBalance; i++) {
             tokenIds[i] = nouns.tokenOfOwnerByIndex(user, i);
         }
 
-        for (uint256 i = 0; i < delegationBalance; i++) {
-            tokenIds[nounBalance + i] = dt.tokenOfOwnerByIndex(user, i);
+        uint256 totalSupply = nouns.totalSupply();
+        for (uint256 j = 0; j < totalSupply; j++) {
+            if (dt.ownerOfNoRevert(j) == user) {
+                tokenIds[i++] = j;
+            }
         }
     }
 }
