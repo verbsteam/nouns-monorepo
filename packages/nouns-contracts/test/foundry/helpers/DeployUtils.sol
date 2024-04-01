@@ -28,6 +28,8 @@ abstract contract DeployUtils is Test, DescriptorHelpers {
     uint256 constant AUCTION_RESERVE_PRICE = 1;
     uint8 constant AUCTION_MIN_BID_INCREMENT_PRCT = 2;
     uint256 constant AUCTION_DURATION = 24 hours;
+    uint32 constant QUEUE_PERIOD = 1 days / 12;
+    uint32 constant GRACE_PERIOD = 14 days / 12;
 
     function _deployAuctionHouseV1AndToken(
         address owner,

@@ -95,6 +95,8 @@ task('deploy-short-times-dao-v3', 'Deploy all Nouns contracts with short gov tim
     0,
     types.int,
   )
+  .addOptionalParam('queuePeriodBlocks', 'The queue period (blocks)', 10, types.int)
+  .addOptionalParam('gracePeriodBlocks', 'The grace period (blocks)', 100_800, types.int)
   .setAction(async (args, { ethers }) => {
     const network = await ethers.provider.getNetwork();
     const [deployer] = await ethers.getSigners();
@@ -250,6 +252,8 @@ task('deploy-short-times-dao-v3', 'Deploy all Nouns contracts with short gov tim
             lastMinuteWindowInBlocks: 0,
             objectionPeriodDurationInBlocks: 0,
             proposalUpdatablePeriodInBlocks: 0,
+            queuePeriod: args.queuePeriodBlocks,
+            gracePeriod: args.gracePeriodBlocks,
           }, // DAOParams
           {
             minQuorumVotesBPS: args.minQuorumVotesBPS,

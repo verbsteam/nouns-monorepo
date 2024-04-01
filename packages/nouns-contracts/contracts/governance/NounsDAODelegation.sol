@@ -21,20 +21,32 @@ import './NounsDAOInterfaces.sol';
 import { NounDelegationToken } from './NounDelegationToken.sol';
 
 library NounsDAODelegation {
-    function isDelegate(address account, uint256[] memory tokenIds) external view returns (bool) {
+    function isDelegate(address account, uint256[] memory tokenIds) internal view returns (bool) {
+        NounDelegationToken dt = NounDelegationToken(ds().delegationToken);
+
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            if (delegateOf(tokenIds[i]) != account) {
+            if (delegateOf(tokenIds[i], dt) != account) {
                 return false;
             }
         }
         return true;
     }
 
-    function delegateOf(uint256 tokenId) public view returns (address) {
-        address delegationOwner = NounDelegationToken(ds().delegationToken).ownerOfNoRevert(tokenId);
+    function delegateOf(uint256 tokenId, NounDelegationToken dt) internal view returns (address) {
+        address delegationOwner = dt.ownerOfNoRevert(tokenId);
+        require(
+            dt.getTokenLastTransfer(tokenId) < block.timestamp,
+            'cannot use voting power updated in the current block'
+        );
         if (delegationOwner != address(0)) return delegationOwner;
 
-        return ds().nouns.ownerOf(tokenId);
+        NounsTokenLike nouns = ds().nouns;
+        address nouner = nouns.ownerOf(tokenId);
+        address nounsTokenDelegate = nouns.delegates(nouner);
+        (uint32 fromBlock, ) = nouns.checkpoints(nounsTokenDelegate, nouns.numCheckpoints(nounsTokenDelegate) - 1);
+        require(fromBlock < block.number, 'cannot use voting power updated in the current block');
+
+        return nouner;
     }
 
     /***

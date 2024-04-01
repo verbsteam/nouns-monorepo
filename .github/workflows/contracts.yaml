@@ -50,6 +50,6 @@ jobs:
       - name: Run Forge tests
         run: |
           cd packages/nouns-contracts
-          forge test -vvv --ffi
+          forge test -vvv --ffi --nmc 'SepoliaForkTest'
         env:
           RPC_MAINNET: ${{ secrets.RPC_MAINNET }}

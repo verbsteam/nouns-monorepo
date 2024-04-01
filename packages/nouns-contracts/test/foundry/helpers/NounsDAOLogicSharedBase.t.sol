@@ -2,17 +2,19 @@
 pragma solidity ^0.8.15;
 
 import 'forge-std/Test.sol';
+import { ERC1967Proxy } from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 import { INounsDAOLogic } from '../../../contracts/interfaces/INounsDAOLogic.sol';
 import { NounsDescriptorV2 } from '../../../contracts/NounsDescriptorV2.sol';
 import { DeployUtilsFork } from './DeployUtilsFork.sol';
 import { NounsToken } from '../../../contracts/NounsToken.sol';
 import { NounsSeeder } from '../../../contracts/NounsSeeder.sol';
 import { IProxyRegistry } from '../../../contracts/external/opensea/IProxyRegistry.sol';
-import { NounsDAOExecutor } from '../../../contracts/governance/NounsDAOExecutor.sol';
+import { NounsDAOExecutorV2 } from '../../../contracts/governance/NounsDAOExecutorV2.sol';
 import { INounsTokenForkLike } from '../../../contracts/governance/fork/newdao/governance/INounsTokenForkLike.sol';
 import { Utils } from './Utils.sol';
 import { NounsTokenLike } from '../../../contracts/governance/NounsDAOInterfaces.sol';
 import { DelegationHelpers } from './DelegationHelpers.sol';
+import { NounsDAOProposals } from '../../../contracts/governance/NounsDAOProposals.sol';
 
 interface DAOLogicFork {
     function _setQuorumVotesBPS(uint256 newQuorumVotesBPS) external;
@@ -23,7 +25,7 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
 
     INounsDAOLogic daoProxy;
     NounsToken nounsToken;
-    NounsDAOExecutor timelock = new NounsDAOExecutor(address(1), TIMELOCK_DELAY);
+    NounsDAOExecutorV2 timelock;
     address vetoer = address(0x3);
     address admin = address(0x4);
     address noundersDAO = address(0x5);
@@ -35,6 +37,9 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
     Utils utils;
 
     function setUp() public virtual {
+        timelock = NounsDAOExecutorV2(payable(address(new ERC1967Proxy(address(new NounsDAOExecutorV2()), ''))));
+        timelock.initialize(address(1));
+
         NounsDescriptorV2 descriptor = _deployAndPopulateV2();
         nounsToken = new NounsToken(noundersDAO, minter, descriptor, new NounsSeeder(), IProxyRegistry(address(0)));
 
@@ -56,6 +61,46 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
 
     function daoVersion() internal virtual returns (uint256) {
         return 0; // override to specify version
+    }
+
+    function makeTxs(
+        address target,
+        uint256 value,
+        string memory signature,
+        bytes memory data
+    ) internal pure returns (NounsDAOProposals.ProposalTxs memory txs) {
+        txs.targets = new address[](1);
+        txs.targets[0] = target;
+        txs.values = new uint256[](1);
+        txs.values[0] = value;
+        txs.signatures = new string[](1);
+        txs.signatures[0] = signature;
+        txs.calldatas = new bytes[](1);
+        txs.calldatas[0] = data;
+    }
+
+    function propose(NounsDAOProposals.ProposalTxs memory txs) internal returns (uint256 proposalId) {
+        return propose(proposer, txs);
+    }
+
+    function propose(
+        address _proposer,
+        NounsDAOProposals.ProposalTxs memory txs
+    ) internal returns (uint256 proposalId) {
+        NounsTokenLike nouns = daoProxy.nouns();
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = nouns.tokenOfOwnerByIndex(_proposer, 0);
+
+        return propose(_proposer, tokenIds, txs);
+    }
+
+    function propose(
+        address _proposer,
+        uint256[] memory tokenIds,
+        NounsDAOProposals.ProposalTxs memory txs
+    ) internal returns (uint256 proposalId) {
+        vm.prank(_proposer);
+        proposalId = daoProxy.propose(tokenIds, txs.targets, txs.values, txs.signatures, txs.calldatas, 'my proposal');
     }
 
     function propose(
@@ -134,7 +179,7 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
 
     function deployForkDAOProxy() internal returns (INounsDAOLogic) {
         (address treasuryAddress, address tokenAddress, address daoAddress) = _deployForkDAO();
-        timelock = NounsDAOExecutor(payable(treasuryAddress));
+        timelock = NounsDAOExecutorV2(payable(treasuryAddress));
         nounsToken = NounsToken(tokenAddress);
         minter = nounsToken.minter();
 

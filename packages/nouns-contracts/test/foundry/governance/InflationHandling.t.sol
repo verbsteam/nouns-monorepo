@@ -38,7 +38,9 @@ abstract contract NounsDAOLogicV3InflationHandlingTest is NounsDAOLogicSharedBas
                     proposalThresholdBPS: proposalThresholdBPS_,
                     lastMinuteWindowInBlocks: LAST_MINUTE_BLOCKS,
                     objectionPeriodDurationInBlocks: OBJECTION_PERIOD_BLOCKS,
-                    proposalUpdatablePeriodInBlocks: 0
+                    proposalUpdatablePeriodInBlocks: 0,
+                    queuePeriod: 1 days / 12,
+                    gracePeriod: 7 days / 12
                 }),
                 NounsDAOTypes.DynamicQuorumParams({
                     minQuorumVotesBPS: minQuorumVotesBPS,
@@ -221,6 +223,6 @@ contract SupplyIncreasedStateTest is SupplyIncreasedState {
 
         vm.roll(block.number + votingPeriod);
 
-        assertEq(uint256(daoProxy.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Succeeded));
+        assertEq(uint256(daoProxy.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Queued));
     }
 }

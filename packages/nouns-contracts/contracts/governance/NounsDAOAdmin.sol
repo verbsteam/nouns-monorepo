@@ -102,6 +102,12 @@ library NounsDAOAdmin {
     /// @notice Emitted when the main timelock, timelockV1 and admin are set
     event TimelocksAndAdminSet(address timelock, address timelockV1, address admin);
 
+    /// @notice An event emitted when the queue period is set
+    event QueuePeriodSet(uint32 oldQueuePeriod, uint32 newQueuePeriod);
+
+    /// @notice An event emitted when the grace period is set
+    event GracePeriodSet(uint32 oldGracePeriod, uint32 newGracePeriod);
+
     /// @notice The minimum setable proposal threshold
     uint256 public constant MIN_PROPOSAL_THRESHOLD_BPS = 1; // 1 basis point or 0.01%
 
@@ -140,6 +146,12 @@ library NounsDAOAdmin {
 
     /// @notice Upper bound for proposal updatable period duration in blocks.
     uint256 public constant MAX_UPDATABLE_PERIOD_BLOCKS = 7 days / 12;
+
+    uint32 public constant MINIMUM_QUEUE_PERIOD = 1 days / 12;
+    uint32 public constant MAXIMUM_QUEUE_PERIOD = 30 days / 12;
+
+    uint32 public constant MINIMUM_GRACE_PERIOD = 7 days / 12;
+    uint32 public constant MAXIMUM_GRACE_PERIOD = 30 days / 12;
 
     modifier onlyAdmin() {
         if (msg.sender != ds().admin) {
@@ -534,6 +546,28 @@ library NounsDAOAdmin {
         ds().admin = admin;
 
         emit TimelocksAndAdminSet(timelock, timelockV1, admin);
+    }
+
+    function _setQueuePeriod(uint32 newQueuePeriod) external onlyAdmin {
+        require(
+            newQueuePeriod >= MINIMUM_QUEUE_PERIOD && newQueuePeriod <= MAXIMUM_QUEUE_PERIOD,
+            'NounsDAO::_setQueuePeriod: invalid value'
+        );
+        uint32 oldQueuePeriod = ds().queuePeriod;
+        ds().queuePeriod = newQueuePeriod;
+
+        emit QueuePeriodSet(oldQueuePeriod, newQueuePeriod);
+    }
+
+    function _setGracePeriod(uint32 newGracePeriod) external onlyAdmin {
+        require(
+            newGracePeriod >= MINIMUM_GRACE_PERIOD && newGracePeriod <= MAXIMUM_GRACE_PERIOD,
+            'NounsDAO::_setGracePeriod: invalid value'
+        );
+        uint32 oldGracePeriod = ds().gracePeriod;
+        ds().gracePeriod = newGracePeriod;
+
+        emit GracePeriodSet(oldGracePeriod, newGracePeriod);
     }
 
     function _writeQuorumParamsCheckpoint(NounsDAOTypes.DynamicQuorumParams memory params) internal {

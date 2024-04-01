@@ -14,6 +14,7 @@ abstract contract ZeroState is NounsDAOLogicBaseTest {
     address rando = makeAddr('rando');
     address otherUser = makeAddr('otherUser');
     uint256 proposalId;
+    NounsDAOProposals.ProposalTxs proposalTxs;
     address signerWithVote;
     uint256 signerWithVotePK;
     address target = makeAddr('target');
@@ -37,11 +38,11 @@ abstract contract ProposalUpdatableState is ZeroState {
         vm.stopPrank();
         tokenIds = [1];
 
-        NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('target'), 0, '', '');
+        proposalTxs = makeTxs(makeAddr('target'), 0, '', '');
         uint256 expirationTimestamp = block.timestamp + 1234;
         NounsDAOTypes.ProposerSignature[] memory proposerSignatures = new NounsDAOTypes.ProposerSignature[](1);
         proposerSignatures[0] = NounsDAOTypes.ProposerSignature(
-            signProposal(proposer, signerWithVotePK, txs, 'description', expirationTimestamp, address(dao)),
+            signProposal(proposer, signerWithVotePK, proposalTxs, 'description', expirationTimestamp, address(dao)),
             signerWithVote,
             expirationTimestamp,
             signerWithVote.allVotesOf(dao)
@@ -51,10 +52,10 @@ abstract contract ProposalUpdatableState is ZeroState {
         proposalId = dao.proposeBySigs(
             proposer.allVotesOf(dao),
             proposerSignatures,
-            txs.targets,
-            txs.values,
-            txs.signatures,
-            txs.calldatas,
+            proposalTxs.targets,
+            proposalTxs.values,
+            proposalTxs.signatures,
+            proposalTxs.calldatas,
             'description'
         );
         vm.stopPrank();
@@ -144,7 +145,7 @@ contract ProposalObjectionPeriodStateTest is ProposalObjectionPeriodState, IsCan
     }
 }
 
-abstract contract ProposalSucceededState is ProposalActiveState {
+abstract contract ProposalQueuedState is ProposalActiveState {
     function setUp() public virtual override {
         super.setUp();
 
@@ -152,21 +153,6 @@ abstract contract ProposalSucceededState is ProposalActiveState {
         dao.castRefundableVote(tokenIds, proposalId, 1);
 
         vm.roll(dao.proposalsV3(proposalId).endBlock + 1);
-        assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Succeeded));
-    }
-}
-
-contract ProposalSucceededStateTest is ProposalSucceededState, IsCancellable {
-    function setUp() public override(ProposalSucceededState, NounsDAOLogicBaseTest) {
-        ProposalSucceededState.setUp();
-    }
-}
-
-abstract contract ProposalQueuedState is ProposalSucceededState {
-    function setUp() public virtual override {
-        super.setUp();
-
-        dao.queue(proposalId);
         assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Queued));
     }
 }
@@ -181,8 +167,8 @@ abstract contract ProposalExecutedState is ProposalQueuedState {
     function setUp() public virtual override {
         super.setUp();
 
-        vm.warp(dao.proposalsV3(proposalId).eta + 1);
-        dao.execute(proposalId);
+        vm.roll(dao.proposalsV3(proposalId).eta + 1);
+        dao.execute(proposalId, proposalTxs.targets, proposalTxs.values, proposalTxs.signatures, proposalTxs.calldatas);
         assertEq(uint256(dao.state(proposalId)), uint256(NounsDAOTypes.ProposalState.Executed));
     }
 }

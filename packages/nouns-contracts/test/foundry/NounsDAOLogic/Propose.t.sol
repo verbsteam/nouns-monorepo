@@ -3,7 +3,8 @@ pragma solidity ^0.8.15;
 
 import 'forge-std/Test.sol';
 import { NounsDAOLogicBaseTest } from './NounsDAOLogicBaseTest.sol';
-import { NounsTokenLike } from '../../../contracts/governance/NounsDAOInterfaces.sol';
+import { NounsTokenLike, NounsDAOEventsV3 } from '../../../contracts/governance/NounsDAOInterfaces.sol';
+import { NounsDAOProposals } from '../../../contracts/governance/NounsDAOProposals.sol';
 
 contract ProposeTest is NounsDAOLogicBaseTest {
     address proposer = makeAddr('proposer');
@@ -20,40 +21,34 @@ contract ProposeTest is NounsDAOLogicBaseTest {
     }
 
     function testEmits_ProposalCreated_and_ProposalCreatedWithRequirements() public {
-        address[] memory targets = new address[](1);
-        targets[0] = makeAddr('target');
-        uint256[] memory values = new uint256[](1);
-        values[0] = 42;
-        string[] memory signatures = new string[](1);
-        signatures[0] = 'some signature';
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = '';
-
+        NounsDAOProposals.ProposalTxs memory txs = makeTxs(makeAddr('target'), 42, 'some signature', '');
         uint256 updatablePeriodEndBlock = block.number + dao.proposalUpdatablePeriodInBlocks();
         uint256 startBlock = updatablePeriodEndBlock + dao.votingDelay();
         uint256 endBlock = startBlock + dao.votingPeriod();
+        bytes32 expectedTxsHash = NounsDAOProposals.hashProposal(txs);
 
         vm.expectEmit(true, true, true, true);
-        emit ProposalCreated(
+        emit NounsDAOEventsV3.ProposalCreated(
             1,
             proposer,
-            targets,
-            values,
-            signatures,
-            calldatas,
+            txs.targets,
+            txs.values,
+            txs.signatures,
+            txs.calldatas,
             startBlock,
             endBlock,
             'some description'
         );
 
         vm.expectEmit(true, true, true, true);
-        emit ProposalCreatedWithRequirements(
+        emit NounsDAOEventsV3.ProposalCreatedWithRequirements(
             1,
             new address[](0),
             updatablePeriodEndBlock,
             1, // prop threshold
-            dao.minQuorumVotes(),
-            0 // clientId
+            0, // dao.minQuorumVotes()
+            0, // clientId
+            expectedTxsHash
         );
 
         NounsTokenLike nouns = dao.nouns();
@@ -63,6 +58,6 @@ contract ProposeTest is NounsDAOLogicBaseTest {
         }
 
         vm.prank(proposer);
-        dao.propose(tokenIds, targets, values, signatures, calldatas, 'some description');
+        dao.propose(tokenIds, txs.targets, txs.values, txs.signatures, txs.calldatas, 'some description');
     }
 }

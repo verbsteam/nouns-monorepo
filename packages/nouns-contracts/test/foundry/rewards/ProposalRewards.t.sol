@@ -124,6 +124,8 @@ abstract contract BaseProposalRewardsTest is NounsDAOLogicBaseTest {
         uint256 blocksToEnd = (auctionHouse.auction().endTime - block.timestamp) / SECONDS_IN_BLOCK + 1;
         mineBlocks(blocksToEnd);
         auctionHouse.settleCurrentAndCreateNewAuction();
+        // advancing one more block to avoid flashloan protection reverts
+        mineBlocks(1);
 
         return nounId;
     }
