@@ -56,21 +56,21 @@ contract NounsTokenLikeMock is NounsTokenLike {
         return address(0);
     }
 
-    function setApprovalForAll(address operator, bool approved) external {}
+    function setApprovalForAll(address, bool) external {}
 
-    function tokenOfOwnerByIndex(address, uint256) public view virtual override returns (uint256) {
+    function tokenOfOwnerByIndex(address, uint256) public pure virtual override returns (uint256) {
         return 0;
     }
 
-    function delegates(address delegator) external view returns (address) {
+    function delegates(address) external pure returns (address) {
         return address(0);
     }
 
-    function numCheckpoints(address account) external view returns (uint32) {
+    function numCheckpoints(address) external pure returns (uint32) {
         return 0;
     }
 
-    function checkpoints(address account, uint32 checkpoint) external view returns (uint32, uint96) {
+    function checkpoints(address, uint32) external pure returns (uint32, uint96) {
         return (0, 0);
     }
 }
