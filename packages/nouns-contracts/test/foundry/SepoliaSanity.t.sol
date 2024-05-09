@@ -92,7 +92,7 @@ abstract contract SepoliaForkBaseTest is Test {
         vm.startPrank(buyer);
         nounId = auction.nounId;
         auctionHouse.createBid{ value: 0.1 ether }(nounId);
-        vm.warp(block.timestamp + auction.endTime);
+        vm.warp(auction.endTime);
         auctionHouse.settleCurrentAndCreateNewAuction();
         vm.roll(block.number + 1);
         vm.stopPrank();

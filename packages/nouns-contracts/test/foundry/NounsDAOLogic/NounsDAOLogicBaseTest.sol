@@ -15,6 +15,7 @@ import { NounsDAOExecutorV2 } from '../../../contracts/governance/NounsDAOExecut
 import { NounsDAOForkEscrow } from '../../../contracts/governance/fork/NounsDAOForkEscrow.sol';
 import { INounsDAOLogic } from '../../../contracts/interfaces/INounsDAOLogic.sol';
 import { DelegationHelpers } from '../helpers/DelegationHelpers.sol';
+import { LibSort } from '../lib/LibSort.sol';
 
 abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
     using DelegationHelpers for address;
@@ -74,8 +75,12 @@ abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
         uint32 clientId
     ) internal returns (uint256 proposalId) {
         NounsTokenLike nouns = dao.nouns();
-        uint256[] memory tokenIds = new uint256[](1);
-        tokenIds[0] = nouns.tokenOfOwnerByIndex(proposer, 0);
+        uint256 balance = nouns.balanceOf(proposer);
+        uint256[] memory tokenIds = new uint256[](balance);
+        for (uint256 i = 0; i < balance; ++i) {
+            tokenIds[i] = nouns.tokenOfOwnerByIndex(proposer, i);
+        }
+        LibSort.insertionSort(tokenIds);
 
         return propose(proposer, tokenIds, txs, description, clientId);
     }
@@ -120,8 +125,12 @@ abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
         uint32 clientId
     ) internal returns (uint256 proposalId) {
         NounsTokenLike nouns = dao.nouns();
-        uint256[] memory tokenIds = new uint256[](1);
-        tokenIds[0] = nouns.tokenOfOwnerByIndex(proposer, 0);
+        uint256 balance = nouns.balanceOf(proposer);
+        uint256[] memory tokenIds = new uint256[](balance);
+        for (uint256 i = 0; i < balance; ++i) {
+            tokenIds[i] = nouns.tokenOfOwnerByIndex(proposer, i);
+        }
+        LibSort.insertionSort(tokenIds);
 
         return propose(proposer, tokenIds, target, value, signature, data, description, clientId);
     }
