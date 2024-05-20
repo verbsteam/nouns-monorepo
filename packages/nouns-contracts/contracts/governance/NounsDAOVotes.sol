@@ -165,8 +165,9 @@ library NounsDAOVotes {
         uint32 clientId
     ) internal {
         NounsDAOTypes.ProposalState proposalState = ds.stateInternal(proposalId);
+        NounsDAOTypes.Proposal storage proposal = ds._proposals[proposalId];
         require(
-            NounsDAODelegation.isDelegate(msg.sender, tokenIds),
+            NounsDAODelegation.isDelegate(msg.sender, tokenIds, proposal.startBlock),
             'msg.sender is not the delegate of provided tokenIds'
         );
 

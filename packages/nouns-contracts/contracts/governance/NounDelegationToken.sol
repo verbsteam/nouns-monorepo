@@ -7,6 +7,7 @@ import { NFTDescriptorV2 } from '../libs/NFTDescriptorV2.sol';
 import { INounsDescriptorV2 } from '../interfaces/INounsDescriptorV2.sol';
 import { INounsSeeder } from '../interfaces/INounsSeeder.sol';
 import { Strings } from '@openzeppelin/contracts/utils/Strings.sol';
+import { Checkpoints } from '../libs/Checkpoints/Checkpoints.sol';
 
 interface INouns {
     function totalSupply() external view returns (uint256);
@@ -20,10 +21,13 @@ interface INouns {
 
 contract NounDelegationToken is ERC721 {
     using Strings for uint256;
+    using Checkpoints for Checkpoints.Trace160;
 
     INouns nouns;
     string backgroundColor;
     mapping(address => address) public delegationAdmins;
+
+    mapping(uint256 tokenId => Checkpoints.Trace160) internal checkpoints;
 
     constructor(address nouns_, string memory backgroundColor_) {
         nouns = INouns(nouns_);
@@ -69,10 +73,6 @@ contract NounDelegationToken is ERC721 {
         return address(0);
     }
 
-    function getTokenLastTransfer(uint256 tokenId) external view returns (uint96) {
-        return _getExtraData(tokenId);
-    }
-
     function _isApprovedOrOwner(address spender, uint256 tokenId) internal view virtual override returns (bool) {
         address nouner = nouns.ownerOf(tokenId);
         if (nouner == spender || delegationAdmins[nouner] == spender) return true;
@@ -83,7 +83,12 @@ contract NounDelegationToken is ERC721 {
     function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal virtual override {
         super._beforeTokenTransfer(from, to, tokenId);
 
-        _setExtraData(tokenId, uint96(block.timestamp));
+        checkpoints[tokenId].push(uint96(block.number), uint160(to));
+    }
+
+    function getPastOwner(uint256 tokenId, uint256 atBlock) public view virtual returns (address) {
+        require(block.number > atBlock, 'NounDelegationToken: Invalid future lookup');
+        return address(checkpoints[tokenId].upperLookupRecent(uint96(atBlock)));
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {

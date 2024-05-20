@@ -15,6 +15,7 @@ import { Utils } from './Utils.sol';
 import { NounsTokenLike } from '../../../contracts/governance/NounsDAOInterfaces.sol';
 import { DelegationHelpers } from './DelegationHelpers.sol';
 import { NounsDAOProposals } from '../../../contracts/governance/NounsDAOProposals.sol';
+import { NounDelegationToken } from '../../../contracts/governance/NounDelegationToken.sol';
 
 interface DAOLogicFork {
     function _setQuorumVotesBPS(uint256 newQuorumVotesBPS) external;
@@ -25,6 +26,7 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
 
     INounsDAOLogic daoProxy;
     NounsToken nounsToken;
+    NounDelegationToken dt;
     NounsDAOExecutorV2 timelock;
     address vetoer = address(0x3);
     address admin = address(0x4);
@@ -44,6 +46,7 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
         nounsToken = new NounsToken(noundersDAO, minter, descriptor, new NounsSeeder(), IProxyRegistry(address(0)));
 
         daoProxy = deployDAOProxy(address(timelock), address(nounsToken), vetoer);
+        dt = NounDelegationToken(daoProxy.delegationToken());
 
         vm.prank(address(timelock));
         timelock.setPendingAdmin(address(daoProxy));
@@ -147,13 +150,20 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
         proposalId = daoProxy.propose(tokenIds, targets, values, signatures, calldatas, 'my proposal');
     }
 
-    function mint(address to, uint256 amount) internal {
-        vm.startPrank(minter);
+    function mint(address to, uint256 amount) internal returns (uint256[] memory tokenIds) {
+        tokenIds = new uint256[](amount);
         for (uint256 i = 0; i < amount; i++) {
+            vm.startPrank(minter);
             uint256 tokenId = nounsToken.mint();
             nounsToken.transferFrom(minter, to, tokenId);
+            vm.stopPrank();
+
+            vm.prank(to);
+            dt.mint(to, tokenId);
+
+            tokenIds[i] = tokenId;
         }
-        vm.stopPrank();
+
         vm.roll(block.number + 1);
     }
 
@@ -168,6 +178,12 @@ abstract contract NounsDAOLogicSharedBaseTest is Test, DeployUtilsFork {
     function vote(address voter, uint256 proposalId, uint8 support) internal {
         vm.startPrank(voter);
         daoProxy.castRefundableVote(voter.allVotesOf(daoProxy), proposalId, support);
+        vm.stopPrank();
+    }
+
+    function vote(address voter, uint256[] memory tokenIds, uint256 proposalId, uint8 support) internal {
+        vm.startPrank(voter);
+        daoProxy.castRefundableVote(tokenIds, proposalId, support);
         vm.stopPrank();
     }
 

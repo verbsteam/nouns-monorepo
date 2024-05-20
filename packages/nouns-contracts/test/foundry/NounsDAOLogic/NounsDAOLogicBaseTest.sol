@@ -41,8 +41,9 @@ abstract contract NounsDAOLogicBaseTest is Test, DeployUtilsV3, SigUtils {
     }
 
     function vote(address voter_, uint256 proposalId_, uint8 support, string memory reason) internal {
+        uint256 atBlock = dao.proposalsV3(proposalId_).startBlock;
         vm.startPrank(voter_);
-        dao.castRefundableVoteWithReason(voter_.allVotesOf(dao), proposalId_, support, reason);
+        dao.castRefundableVoteWithReason(voter_.allVotesOf(dao, atBlock), proposalId_, support, reason);
         vm.stopPrank();
     }
 

@@ -6,26 +6,35 @@ import { NounsTokenLike } from '../../../contracts/governance/NounsDAOInterfaces
 import { NounDelegationToken } from '../../../contracts/governance/NounDelegationToken.sol';
 
 library DelegationHelpers {
-    /***
-     * @dev Assumes there is no overlap between owned Nouns and Delegation tokens.
-     */
     function allVotesOf(address user, INounsDAOLogic dao) internal view returns (uint256[] memory tokenIds) {
+        return allVotesOf(user, dao, block.number - 1);
+    }
+
+    /***
+     * @dev Assumes all Nouns are owned by user and all delegation tokens are also owned by user.
+     */
+    function allVotesOf(
+        address user,
+        INounsDAOLogic dao,
+        uint256 atBlock
+    ) internal view returns (uint256[] memory tokenIds) {
         NounsTokenLike nouns = dao.nouns();
         NounDelegationToken dt = NounDelegationToken(dao.delegationToken());
 
         uint256 nounBalance = nouns.balanceOf(user);
-        uint256 delegationBalance = dt.balanceOf(user);
-
-        tokenIds = new uint256[](nounBalance + delegationBalance);
-        uint256 i = 0;
-        for (; i < nounBalance; i++) {
-            tokenIds[i] = nouns.tokenOfOwnerByIndex(user, i);
+        tokenIds = new uint256[](nounBalance);
+        uint256 actualCount = 0;
+        for (uint256 i = 0; i < nounBalance; i++) {
+            uint256 tokenId = nouns.tokenOfOwnerByIndex(user, i);
+            if (dt.getPastOwner(tokenId, atBlock) == user) {
+                tokenIds[i] = tokenId;
+                actualCount++;
+            }
         }
 
-        uint256 totalSupply = nouns.totalSupply();
-        for (uint256 j = 0; j < totalSupply; j++) {
-            if (dt.ownerOfNoRevert(j) == user) {
-                tokenIds[i++] = j;
+        if (nounBalance > actualCount) {
+            assembly {
+                mstore(tokenIds, actualCount)
             }
         }
     }

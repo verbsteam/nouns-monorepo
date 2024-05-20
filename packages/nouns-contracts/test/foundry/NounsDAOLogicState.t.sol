@@ -14,12 +14,20 @@ import { DelegationHelpers } from './helpers/DelegationHelpers.sol';
 import { NounsDAOProposals } from '../../contracts/governance/NounsDAOProposals.sol';
 
 abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
+    address forVoter;
+    address againstVoter;
+
+    uint256[] forVoterTokens;
+    uint256[] againstVoterTokens;
+
     function setUp() public override {
         super.setUp();
 
         mint(proposer, 1);
-
         vm.roll(block.number + 1);
+
+        forVoter = utils.getNextUserAddress();
+        againstVoter = utils.getNextUserAddress();
     }
 
     function testRevertsGivenProposalIdThatDoesntExist() public {
@@ -62,31 +70,27 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
     }
 
     function testDefeatedByVotingAgainst() public {
-        address forVoter = utils.getNextUserAddress();
-        address againstVoter = utils.getNextUserAddress();
-        mint(forVoter, 3);
-        mint(againstVoter, 3);
+        forVoterTokens = mint(forVoter, 3);
+        againstVoterTokens = mint(againstVoter, 3);
 
         uint256 proposalId = propose(address(0x1234), 100, '', '');
         startVotingPeriod();
-        vote(forVoter, proposalId, 1);
-        vote(againstVoter, proposalId, 0);
+        vote(forVoter, forVoterTokens, proposalId, 1);
+        vote(againstVoter, againstVoterTokens, proposalId, 0);
         endVotingPeriod();
 
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Defeated);
     }
 
     function testQueued() public {
-        address forVoter = utils.getNextUserAddress();
-        address againstVoter = utils.getNextUserAddress();
-        mint(forVoter, 4);
-        mint(againstVoter, 3);
+        forVoterTokens = mint(forVoter, 4);
+        againstVoterTokens = mint(againstVoter, 3);
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
         uint256 proposalId = propose(txs);
         startVotingPeriod();
-        vote(forVoter, proposalId, 1);
-        vote(againstVoter, proposalId, 0);
+        vote(forVoter, forVoterTokens, proposalId, 1);
+        vote(againstVoter, againstVoterTokens, proposalId, 0);
         endVotingPeriod();
         vm.roll(block.number + 1);
 
@@ -94,25 +98,22 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
     }
 
     function testExpired() public {
-        address forVoter = utils.getNextUserAddress();
-        address againstVoter = utils.getNextUserAddress();
-        mint(forVoter, 4);
-        mint(againstVoter, 3);
+        forVoterTokens = mint(forVoter, 4);
+        againstVoterTokens = mint(againstVoter, 3);
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
 
         uint256 proposalId = propose(txs);
         startVotingPeriod();
-        vote(forVoter, proposalId, 1);
-        vote(againstVoter, proposalId, 0);
+        vote(forVoter, forVoterTokens, proposalId, 1);
+        vote(againstVoter, againstVoterTokens, proposalId, 0);
         vm.roll(daoProxy.proposalsV3(proposalId).eta + daoProxy.gracePeriod() + 1);
 
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Expired);
     }
 
     function testExecutedOnlyAfterQueued() public {
-        address forVoter = utils.getNextUserAddress();
-        mint(forVoter, 4);
+        forVoterTokens = mint(forVoter, 4);
 
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
 
@@ -121,7 +122,7 @@ abstract contract NounsDAOLogicStateBaseTest is NounsDAOLogicSharedBaseTest {
         daoProxy.execute(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
 
         startVotingPeriod();
-        vote(forVoter, proposalId, 1);
+        vote(forVoter, forVoterTokens, proposalId, 1);
         vm.expectRevert('NounsDAO::execute: proposal can only be executed if it is queued');
         daoProxy.execute(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
 

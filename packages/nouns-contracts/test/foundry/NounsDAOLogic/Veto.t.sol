@@ -12,10 +12,12 @@ contract NounsDAOLogicV3VetoTest is NounsDAOLogicSharedBaseTest {
     event NewPendingVetoer(address oldPendingVetoer, address newPendingVetoer);
     event NewVetoer(address oldVetoer, address newVetoer);
 
+    uint256[] proposerTokenIds;
+
     function setUp() public override {
         super.setUp();
 
-        mint(proposer, 1);
+        proposerTokenIds = mint(proposer, 1);
 
         vm.roll(block.number + 1);
     }
@@ -102,7 +104,7 @@ contract NounsDAOLogicV3VetoTest is NounsDAOLogicSharedBaseTest {
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
         uint256 proposalId = propose(txs);
         vm.roll(block.number + daoProxy.votingDelay() + 1);
-        vote(proposer, proposalId, 0);
+        vote(proposer, proposerTokenIds, proposalId, 0);
         vm.roll(block.number + daoProxy.votingPeriod() + 1);
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Defeated);
 
@@ -116,7 +118,7 @@ contract NounsDAOLogicV3VetoTest is NounsDAOLogicSharedBaseTest {
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
         uint256 proposalId = propose(txs);
         vm.roll(block.number + daoProxy.votingDelay() + 1);
-        vote(proposer, proposalId, 1);
+        vote(proposer, proposerTokenIds, proposalId, 1);
         vm.roll(daoProxy.proposalsV3(proposalId).endBlock + 1);
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Queued);
 
@@ -130,7 +132,7 @@ contract NounsDAOLogicV3VetoTest is NounsDAOLogicSharedBaseTest {
         NounsDAOProposals.ProposalTxs memory txs = makeTxs(address(0x1234), 100, '', '');
         uint256 proposalId = propose(txs);
         vm.roll(block.number + daoProxy.votingDelay() + 1);
-        vote(proposer, proposalId, 1);
+        vote(proposer, proposerTokenIds, proposalId, 1);
         vm.roll(daoProxy.proposalsV3(proposalId).eta + daoProxy.gracePeriod() + 1);
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Expired);
 
@@ -145,7 +147,7 @@ contract NounsDAOLogicV3VetoTest is NounsDAOLogicSharedBaseTest {
         vm.deal(address(timelock), 100);
         uint256 proposalId = propose(txs);
         vm.roll(block.number + daoProxy.votingDelay() + 1);
-        vote(proposer, proposalId, 1);
+        vote(proposer, proposerTokenIds, proposalId, 1);
         vm.roll(daoProxy.proposalsV3(proposalId).eta + 1);
         daoProxy.execute(proposalId, txs.targets, txs.values, txs.signatures, txs.calldatas);
         assertTrue(daoProxy.state(proposalId) == NounsDAOTypes.ProposalState.Executed);

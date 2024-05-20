@@ -10,11 +10,13 @@ import { NounsAuctionHouseProxy } from '../../../contracts/proxies/NounsAuctionH
 import { NounsToken } from '../../../contracts/NounsToken.sol';
 import { RewardsDeployer } from '../../../script/Rewards/RewardsDeployer.sol';
 import 'forge-std/Test.sol';
+import { NounDelegationToken } from '../../../contracts/governance/NounDelegationToken.sol';
 
 abstract contract BaseProposalRewardsTest is NounsDAOLogicBaseTest {
     Rewards rewards;
     ERC20Mock erc20Mock = new ERC20Mock();
     INounsAuctionHouseV2 auctionHouse;
+    NounDelegationToken dt;
 
     address admin = makeAddr('admin');
     address bidder1 = makeAddr('bidder1');
@@ -35,7 +37,7 @@ abstract contract BaseProposalRewardsTest is NounsDAOLogicBaseTest {
         vm.deal(bidder2, 1000 ether);
 
         // need at least one settled auction
-        bidAndSettleAuction(1 ether);
+        uint256 nounId = bidAndSettleAuction(1 ether);
         bidAndSettleAuction(bidder2, 1 ether);
         mineBlocks(1);
 
@@ -46,6 +48,8 @@ abstract contract BaseProposalRewardsTest is NounsDAOLogicBaseTest {
 
         vm.prank(makeAddr('noundersDAO'));
         nounsToken.transferFrom(makeAddr('noundersDAO'), bidder2, 0);
+        vm.prank(bidder2);
+        dt.mint(bidder2, 0);
 
         rewards = RewardsDeployer.deployRewards(dao, admin, minter, address(erc20Mock), address(0));
 
@@ -87,6 +91,8 @@ abstract contract BaseProposalRewardsTest is NounsDAOLogicBaseTest {
             auctionHouseProxyAdmin,
             NounsAuctionHouseProxy(payable(address(auctionHouse)))
         );
+
+        dt = NounDelegationToken(dao.delegationToken());
     }
 
     function proposeVoteAndEndVotingPeriod(uint32 clientId) internal returns (uint32) {
@@ -108,7 +114,15 @@ abstract contract BaseProposalRewardsTest is NounsDAOLogicBaseTest {
         vm.prank(bidder);
         auctionHouse.createBid{ value: bidAmount }(nounId);
 
-        return fastforwardAndSettleAuction();
+        fastforwardAndSettleAuction();
+
+        vm.prank(bidder);
+        dt.mint(bidder, nounId);
+
+        // advancing one more block to avoid flashloan protection reverts
+        mineBlocks(1);
+
+        return nounId;
     }
 
     function bidAndSettleAuction(uint256 bidAmount) internal returns (uint256) {
@@ -658,6 +672,15 @@ contract VotesRewardsTest is BaseProposalRewardsTest {
 
         uint256 startTimestamp = block.timestamp;
         bidAndSettleAuction({ bidAmount: 15 ether });
+
+        address nounders = makeAddr('noundersDAO');
+        vm.startPrank(nounders);
+        uint256 noundersBalance = nounsToken.balanceOf(nounders);
+        for (uint256 i = 0; i < noundersBalance; i++) {
+            dt.mint(nounders, nounsToken.tokenOfOwnerByIndex(nounders, i));
+        }
+        vm.stopPrank();
+        mineBlocks(1);
         vm.warp(startTimestamp + 2 weeks + 1);
 
         proposalId = uint32(propose(bidder1, address(1), 1 ether, '', '', 'my proposal', 0));
